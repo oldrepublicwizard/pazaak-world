@@ -1,0 +1,35 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/config"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/discord-ui"
+    },
+    {
+      "path": "packages/persistence"
+    },
+    {
+      "path": "packages/personas"
+    },
+    {
+      "path": "packages/retrieval"
+    },
+    {
+      "path": "apps/trask-bot"
+    },
+    {
+      "path": "apps/hk-bot"
+    },
+    {
+      "path": "apps/deadeye-duncan-bot"
+    },
+    {
+      "path": "apps/ingest-worker"
+    }
+  ]
+}

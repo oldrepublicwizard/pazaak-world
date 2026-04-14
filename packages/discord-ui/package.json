@@ -1,0 +1,17 @@
+{
+  "name": "@openkotor/discord-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.2"
+  }
+}
