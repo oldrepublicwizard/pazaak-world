@@ -75,7 +75,24 @@ const configuredApiBases = String(import.meta.env.VITE_API_BASES ?? "")
   .map((value: string) => value.trim())
   .filter((value: string) => value.length > 0);
 
-const apiBases = configuredApiBases.length > 0 ? configuredApiBases : [""];
+function resolveDefaultApiBases(): string[] {
+  if (configuredApiBases.length > 0) {
+    return configuredApiBases;
+  }
+
+  if (typeof window === "undefined") {
+    return [""];
+  }
+
+  const { protocol, hostname, port } = window.location;
+  if ((hostname === "localhost" || hostname === "127.0.0.1") && port !== "4001") {
+    return [`${protocol}//${hostname}:4001`, ""];
+  }
+
+  return [""];
+}
+
+const apiBases = resolveDefaultApiBases();
 
 function buildApiUrl(path: string, base: string): string {
   if (!base) return path;

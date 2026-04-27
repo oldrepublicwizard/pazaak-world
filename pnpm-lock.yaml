@@ -15,8 +15,8 @@ importers:
         specifier: ^4.20.6
         version: 4.21.0
       typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
+        specifier: ~6.0.2
+        version: 6.0.2
 
   apps/hk-bot:
     dependencies:
@@ -59,6 +59,46 @@ importers:
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
+
+  apps/pazaak-bot:
+    dependencies:
+      '@openkotor/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@openkotor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@openkotor/discord-ui':
+        specifier: workspace:*
+        version: link:../../packages/discord-ui
+      '@openkotor/pazaak-engine':
+        specifier: workspace:*
+        version: link:../../packages/pazaak-engine
+      '@openkotor/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      '@openkotor/personas':
+        specifier: workspace:*
+        version: link:../../packages/personas
+      discord.js:
+        specifier: ^14.26.2
+        version: 14.26.2
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      express:
+        specifier: ^5.1.0
+        version: 5.2.1
+      ws:
+        specifier: ^8.18.3
+        version: 8.20.0
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.3
+        version: 5.0.6
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
 
   apps/pazaak-world:
     dependencies:
@@ -117,46 +157,6 @@ importers:
       vite:
         specifier: ^8.0.4
         version: 8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)
-
-  apps/pazaak-bot:
-    dependencies:
-      '@openkotor/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@openkotor/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@openkotor/discord-ui':
-        specifier: workspace:*
-        version: link:../../packages/discord-ui
-      '@openkotor/pazaak-engine':
-        specifier: workspace:*
-        version: link:../../packages/pazaak-engine
-      '@openkotor/persistence':
-        specifier: workspace:*
-        version: link:../../packages/persistence
-      '@openkotor/personas':
-        specifier: workspace:*
-        version: link:../../packages/personas
-      discord.js:
-        specifier: ^14.26.2
-        version: 14.26.2
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      express:
-        specifier: ^5.1.0
-        version: 5.2.1
-      ws:
-        specifier: ^8.18.3
-        version: 8.20.0
-    devDependencies:
-      '@types/express':
-        specifier: ^5.0.3
-        version: 5.0.6
-      '@types/ws':
-        specifier: ^8.18.1
-        version: 8.18.1
 
   apps/trask-bot:
     dependencies:
@@ -1876,11 +1876,6 @@ packages:
   typescript-event-target@1.1.2:
     resolution: {integrity: sha512-TvkrTUpv7gCPlcnSoEwUVUBwsdheKm+HF5u2tPAKubkIGMfovdSizCTaZRY/NhR8+Ijy8iZZUapbVQAsNrkFrw==}
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   typescript@6.0.2:
     resolution: {integrity: sha512-bGdAIrZ0wiGDo5l8c++HWtbaNCWTS4UTv7RaTH/ThVIgjkveJt83m74bBHMJkuCbslY8ixgLBVZJIOiQlQTjfQ==}
     engines: {node: '>=14.17'}
@@ -3548,8 +3543,6 @@ snapshots:
       - supports-color
 
   typescript-event-target@1.1.2: {}
-
-  typescript@5.9.3: {}
 
   typescript@6.0.2: {}
 

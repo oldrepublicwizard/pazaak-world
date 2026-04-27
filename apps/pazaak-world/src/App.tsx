@@ -42,6 +42,7 @@ import { LocalPracticeGame } from "./components/LocalPracticeGame.tsx";
 import { QuickSideboardSwitcher } from "./components/QuickSideboardSwitcher.tsx";
 import { SideboardWorkshop } from "./components/SideboardWorkshop.tsx";
 import { GlobalAccountCorner } from "./components/GlobalAccountCorner.tsx";
+import { CommunityBotsDashboard } from "./components/CommunityBotsDashboard.tsx";
 import { soundManager } from "./utils/soundManager.ts";
 import { ConnectionStatus } from "./components/ConnectionStatus.tsx";
 
@@ -244,6 +245,24 @@ const createLocalGuestSession = (): ActivitySession => {
   };
 };
 
+const PAZAAK_WORLD_PUBLIC_ROUTE = "/bots/pazaakworld";
+
+const isPazaakWorldRoute = (): boolean => {
+  if (isDiscordActivity()) {
+    return true;
+  }
+
+  const pathname = window.location.pathname.replace(/\/+$/u, "") || "/";
+  return pathname === PAZAAK_WORLD_PUBLIC_ROUTE
+    || pathname.startsWith(`${PAZAAK_WORLD_PUBLIC_ROUTE}/`)
+    || pathname === "/pazaakworld"
+    || pathname.startsWith("/pazaakworld/");
+};
+
+export default function App() {
+  return isPazaakWorldRoute() ? <PazaakWorldApp /> : <CommunityBotsDashboard />;
+}
+
 // ---------------------------------------------------------------------------
 // App states
 // ---------------------------------------------------------------------------
@@ -277,7 +296,7 @@ function getSessionFromAppState(state: AppState): ActivitySession | null {
   }
 }
 
-export default function App() {
+function PazaakWorldApp() {
   const [state, setState] = useState<AppState>({ stage: "loading" });
   const [matchSocketState, setMatchSocketState] = useState<MatchSocketConnectionState>("disconnected");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -1345,6 +1364,80 @@ function ErrorScreen({ message }: { message: string }) {
   );
 }
 
+type PasswordStrengthTone = "idle" | "weak" | "fair" | "strong" | "very-strong";
+
+interface PasswordStrengthState {
+  score: number;
+  label: string;
+  hint: string;
+  tone: PasswordStrengthTone;
+}
+
+const getPasswordStrengthState = (value: string): PasswordStrengthState => {
+  if (value.length === 0) {
+    return {
+      score: 0,
+      label: "Add a password",
+      hint: "Use 10 or more characters. Longer passphrases are stronger.",
+      tone: "idle",
+    };
+  }
+
+  if (value.length < 10) {
+    return {
+      score: 1,
+      label: "Weak",
+      hint: "Use at least 10 characters.",
+      tone: "weak",
+    };
+  }
+
+  const characterGroups = [/[a-z]/u, /[A-Z]/u, /\d/u, /[^\p{L}\d\s]/u, /\s/u].reduce(
+    (count, pattern) => count + (pattern.test(value) ? 1 : 0),
+    0,
+  );
+
+  let score = 1;
+  if (value.length >= 12) score += 1;
+  if (value.length >= 16) score += 1;
+  if (characterGroups >= 2) score += 1;
+  if (characterGroups >= 4) score += 1;
+
+  if (score <= 2) {
+    return {
+      score,
+      label: "Weak",
+      hint: "Add length or mix in more character variety.",
+      tone: "weak",
+    };
+  }
+
+  if (score === 3) {
+    return {
+      score,
+      label: "Fair",
+      hint: "Decent start. A longer passphrase would be stronger.",
+      tone: "fair",
+    };
+  }
+
+  if (score === 4) {
+    return {
+      score,
+      label: "Strong",
+      hint: "Good. More length makes it harder to guess.",
+      tone: "strong",
+    };
+  }
+
+  return {
+    score: 5,
+    label: "Very strong",
+    hint: "Excellent length and variety.",
+    tone: "very-strong",
+  };
+};
+
 function StandaloneAuthScreen({
   message,
   isOnline = true,
@@ -1374,6 +1467,7 @@ function StandaloneAuthScreen({
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(message ?? null);
@@ -1407,6 +1501,7 @@ function StandaloneAuthScreen({
     setMode(nextMode);
     setError(message ?? null);
     setPassword("");
+    setConfirmPassword("");
     setShowPassword(false);
     setShowAuth(true);
   };
@@ -1415,6 +1510,7 @@ function StandaloneAuthScreen({
     if (busy) return;
     setShowAuth(false);
     setPassword("");
+    setConfirmPassword("");
     setShowPassword(false);
     setError(null);
   };
@@ -1573,12 +1669,25 @@ function StandaloneAuthScreen({
   const credentialsTabPanelId = "pazaak-auth-credentials-panel";
   const loginTabId = "pazaak-auth-tab-login";
   const registerTabId = "pazaak-auth-tab-register";
+  const passwordStrength = useMemo(() => getPasswordStrengthState(password), [password]);
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const registerValidationHint = username.trim().length < 3
+    ? "Username must be at least 3 characters."
+    : password.length < 10
+      ? "Password must be at least 10 characters."
+      : confirmPassword.length === 0
+        ? "Confirm your password to continue."
+        : !passwordsMatch
+          ? "Passwords do not match yet."
+          : passwordStrength.score <= 2
+            ? "Password is valid but still weak. Consider a longer passphrase."
+            : "Create your account when ready.";
   const canSubmit = mode === "login"
     ? identifier.trim().length > 0 && password.length > 0
-    : username.trim().length >= 3 && password.length >= 10;
+    : username.trim().length >= 3 && password.length >= 10 && passwordsMatch;
   const validationHint = mode === "login"
     ? "Enter your username/email and password to continue."
-    : "Username must be at least 3 characters and password at least 10 characters.";
+    : registerValidationHint;
 
   const submit = async () => {
     if (!canSubmit) {
@@ -1887,6 +1996,36 @@ function StandaloneAuthScreen({
                           {showPassword ? "Hide" : "Show"}
                         </button>
                       </span>
+                      <span className="auth-password-strength" aria-live="polite">
+                        <span className="auth-password-strength__label-row">
+                          <span className="auth-password-strength__label">Password strength</span>
+                          <span className={`auth-password-strength__value auth-password-strength__value--${passwordStrength.tone}`}>{passwordStrength.label}</span>
+                        </span>
+                        <span className="auth-password-strength__track" aria-hidden="true">
+                          <span
+                            className={`auth-password-strength__fill auth-password-strength__fill--${passwordStrength.tone}`}
+                            style={{ width: `${Math.max(passwordStrength.score, 0) * 20}%` }}
+                          />
+                        </span>
+                        <span className="auth-password-strength__hint">{passwordStrength.hint}</span>
+                      </span>
+                    </label>
+                    <label className="auth-field">
+                      <span className="auth-field__label">Confirm password</span>
+                      <span className="auth-input-wrap">
+                        <input value={confirmPassword} onChange={(event) => {
+                          setConfirmPassword(event.target.value);
+                          if (error) setError(null);
+                        }} type={showPassword ? "text" : "password"} placeholder="Re-enter your password" aria-label="Confirm password" autoComplete="new-password" required minLength={10} disabled={busy} />
+                        <button type="button" className="auth-input-wrap__toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide passwords" : "Show passwords"} aria-pressed={showPassword} disabled={busy}>
+                          {showPassword ? "Hide" : "Show"}
+                        </button>
+                      </span>
+                      {confirmPassword.length > 0 ? (
+                        <span className={`auth-field__hint ${passwordsMatch ? "auth-field__hint--success" : "auth-field__hint--error"}`} role="status" aria-live="polite">
+                          {passwordsMatch ? "Passwords match." : "Passwords must match exactly."}
+                        </span>
+                      ) : null}
                     </label>
                   </>
                 )}

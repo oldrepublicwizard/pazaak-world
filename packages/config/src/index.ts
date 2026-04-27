@@ -25,6 +25,7 @@ if (dotEnvPath) {
 
 const defaultChatModel = "gpt-5.4-mini";
 const defaultEmbeddingModel = "text-embedding-3-large";
+const defaultPazaakWorldUrl = "https://openkotor.github.io/bots/pazaakworld";
 
 const integerish = z.coerce.number().int().nonnegative();
 
@@ -112,7 +113,7 @@ export interface PazaakBotConfig {
   apiPort: number;
   /** Public URL where the pazaak-world frontend is hosted (for the "Launch Activity" button link). */
   activityUrl: string;
-  /** Public standalone website origin for CORS and OAuth redirect flows. */
+  /** Public standalone website URL for CORS and OAuth redirect flows. */
   publicWebOrigin: string | undefined;
   /** Per-turn decision window for cross-platform clients. */
   turnTimerSeconds: number;
@@ -183,8 +184,8 @@ export const loadPazaakBotConfig = (env: NodeJS.ProcessEnv = process.env): Pazaa
     dailyCooldownMs: integerish.parse(readOptionalEnv("PAZAAK_DAILY_COOLDOWN_MS", env) ?? "86400000"),
     turnTimeoutMs: integerish.parse(readOptionalEnv("PAZAAK_TURN_TIMEOUT_MS", env) ?? "300000"),
     apiPort: integerish.parse(readOptionalEnv("PAZAAK_API_PORT", env) ?? "4001"),
-    activityUrl: readOptionalEnv("PAZAAK_ACTIVITY_URL", env) ?? "http://localhost:5173",
-    publicWebOrigin: readOptionalEnv("PAZAAK_PUBLIC_WEB_ORIGIN", env),
+    activityUrl: readOptionalEnv("PAZAAK_ACTIVITY_URL", env) ?? defaultPazaakWorldUrl,
+    publicWebOrigin: readOptionalEnv("PAZAAK_PUBLIC_WEB_ORIGIN", env) ?? defaultPazaakWorldUrl,
     turnTimerSeconds: integerish.parse(readOptionalEnv("PAZAAK_TURN_TIMER_SECONDS", env) ?? "45"),
     disconnectForfeitMs: integerish.parse(readOptionalEnv("PAZAAK_DISCONNECT_FORFEIT_MS", env) ?? "30000"),
     matchmakingTickMs: integerish.parse(readOptionalEnv("PAZAAK_MATCHMAKING_TICK_MS", env) ?? "5000"),

@@ -45,11 +45,23 @@ jobs:
         id: base
         shell: bash
         run: |
-          if [ "${GITHUB_REPOSITORY#*/}" = "${GITHUB_REPOSITORY_OWNER}.github.io" ]; then
-            echo "base_path=/" >> "$GITHUB_OUTPUT"
-          else
-            echo "base_path=/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_OUTPUT"
+          echo "base_path=/bots/" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve optional API base list
+        id: api
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          api_bases=""
+          if command -v gh >/dev/null 2>&1; then
+            api_bases="$(gh variable get PAZAAK_API_BASES --repo "$GITHUB_REPOSITORY" 2>/dev/null || true)"
           fi
+          {
+            echo "api_bases<<EOF"
+            echo "$api_bases"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -57,8 +69,11 @@ jobs:
       - name: Build PazaakWorld
         env:
           BASE: ${{ steps.base.outputs.base_path }}
-          VITE_API_BASES: ${{ vars.PAZAAK_API_BASES }}
+          VITE_API_BASES: ${{ steps.api.outputs.api_bases }}
         run: pnpm --filter pazaak-world build
+
+      - name: Add SPA fallback
+        run: cp apps/pazaak-world/dist/index.html apps/pazaak-world/dist/404.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

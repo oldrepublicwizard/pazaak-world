@@ -110,6 +110,35 @@ const OAUTH_PROVIDER_ENV = {
 type SocialAuthProvider = keyof typeof OAUTH_PROVIDER_ENV;
 
 const SOCIAL_PROVIDERS = Object.keys(OAUTH_PROVIDER_ENV) as SocialAuthProvider[];
+const DEFAULT_PUBLIC_WEB_URL = "https://openkotor.github.io/bots/pazaakworld";
+
+const normalizePublicWebUrl = (value: string | undefined): string => {
+  const trimmed = value?.trim();
+  return (trimmed && trimmed.length > 0 ? trimmed : DEFAULT_PUBLIC_WEB_URL).replace(/\/+$/u, "");
+};
+
+const resolveCorsOrigin = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/u, "");
+  }
+};
+
+const isLocalhostUrl = (value: string): boolean => {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    const lowered = value.toLowerCase();
+    return lowered.includes("localhost") || lowered.includes("127.0.0.1");
+  }
+};
 
 const resolveOauthConfig = (provider: SocialAuthProvider) => {
   const env = OAUTH_PROVIDER_ENV[provider];
@@ -314,12 +343,16 @@ export function createApiServer(
 
   // Allow the Discord Activity iframe and localhost browser origins.
   app.use((req, res, next) => {
+    const localWebOrigins = [3000, 4173, 5173].flatMap((port) => [
+      `http://localhost:${port}`,
+      `http://127.0.0.1:${port}`,
+    ]);
+
     const allowedOrigins = [
       `https://${opts.discordAppId}.discordsays.com`,
-      "http://localhost:5173",
-      "http://localhost:3000",
-      opts.activityOrigin,
-      opts.publicWebOrigin,
+      ...localWebOrigins,
+      resolveCorsOrigin(opts.activityOrigin),
+      resolveCorsOrigin(opts.publicWebOrigin),
     ].filter(Boolean);
 
     const origin = req.headers.origin ?? "";
@@ -543,7 +576,7 @@ export function createApiServer(
 
   const oauthStateStore = new Map<string, PendingOauthState>();
   const OAUTH_STATE_TTL_MS = 1000 * 60 * 10;
-  const oauthLandingBase = opts.publicWebOrigin?.trim() || "http://localhost:5173";
+  const oauthLandingBase = normalizePublicWebUrl(opts.publicWebOrigin);
 
   const cleanupOauthState = (): void => {
     const now = Date.now();
@@ -578,10 +611,11 @@ export function createApiServer(
   };
 
   const resolveCallbackUrl = (provider: SocialAuthProvider, configured: string): string => {
-    if (configured) {
-      return configured;
+    const configuredCallbackUrl = configured.trim();
+    if (configuredCallbackUrl && (!isLocalhostUrl(configuredCallbackUrl) || isLocalhostUrl(oauthLandingBase))) {
+      return configuredCallbackUrl;
     }
-    return `${oauthLandingBase.replace(/\/$/u, "")}/api/auth/oauth/${provider}/callback`;
+    return `${oauthLandingBase}/api/auth/oauth/${provider}/callback`;
   };
 
   const fetchGoogleProfile = async (code: string): Promise<{ providerUserId: string; username: string; displayName: string; email: string | null }> => {
