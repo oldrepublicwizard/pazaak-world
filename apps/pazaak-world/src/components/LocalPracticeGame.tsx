@@ -199,7 +199,7 @@ const createSideCardFromToken = (token: string): LocalSideCard | null => {
 
 const createOpponentSideDeck = (profile: LocalOpponentProfile): LocalSideCard[] => {
   const mapped = profile.sideDeckTokens
-    .map((token) => createSideCardFromToken(token))
+    .map((token: string) => createSideCardFromToken(token))
     .filter((card): card is LocalSideCard => card !== null);
 
   if (mapped.length >= 10) {

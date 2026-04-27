@@ -17,6 +17,15 @@
       "@openkotor/discord-ui": [
         "packages/discord-ui/src/index.ts"
       ],
+      "@openkotor/pazaak-engine": [
+        "packages/pazaak-engine/src/index.ts"
+      ],
+      "@openkotor/pazaak-engine/menu-preset": [
+        "packages/pazaak-engine/src/menu-preset.ts"
+      ],
+      "@openkotor/pazaak-engine/opponents": [
+        "packages/pazaak-engine/src/opponents.ts"
+      ],
       "@openkotor/persistence": [
         "packages/persistence/src/index.ts"
       ],

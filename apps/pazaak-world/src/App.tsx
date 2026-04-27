@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { MAIN_MENU_PRESET, type MainMenuIconKey } from "@openkotor/pazaak-engine/menu-preset";
+import { MAIN_MENU_PRESET, type MainMenuIconKey, type MainMenuModeCardPreset, type MainMenuAiOptionPreset, type MainMenuActionPreset, type MainMenuRulePreset } from "@openkotor/pazaak-engine/menu-preset";
 import type { AdvisorDifficulty, LeaderboardEntry, MatchmakingQueueRecord, PazaakLobbyRecord, PazaakLobbySideboardMode, PazaakMatchHistoryRecord, PazaakTableVariant, PazaakUserSettings, SerializedMatch, WalletRecord } from "./types.ts";
 import { initDiscordAuth, closeActivity, isDiscordActivity } from "./discord.ts";
 import { getDefaultLocalOpponentForDifficulty, localOpponents, type LocalOpponentProfile } from "./localOpponents.ts";
@@ -939,9 +939,9 @@ function ModeSelectionScreen({
   }, [selectedLocalOpponentId]);
 
   const statusLabel = isOnline ? "Connected to Galaxy Server" : "Disconnected from Galaxy Server";
-  const aiCard = MAIN_MENU_PRESET.modeCards.find((card) => card.key === "ai");
-  const quickMatchCard = MAIN_MENU_PRESET.modeCards.find((card) => card.key === "quick_match");
-  const lobbyCard = MAIN_MENU_PRESET.modeCards.find((card) => card.key === "private_lobby");
+  const aiCard = MAIN_MENU_PRESET.modeCards.find((card: MainMenuModeCardPreset) => card.key === "ai");
+  const quickMatchCard = MAIN_MENU_PRESET.modeCards.find((card: MainMenuModeCardPreset) => card.key === "quick_match");
+  const lobbyCard = MAIN_MENU_PRESET.modeCards.find((card: MainMenuModeCardPreset) => card.key === "private_lobby");
 
   const launchConfiguredMatch = () => {
     if (matchIntent === "quick_match") {
@@ -992,7 +992,7 @@ function ModeSelectionScreen({
               <h2><span aria-hidden="true">{menuIcon(aiCard.icon)}</span>{aiCard.title}</h2>
               <p>{aiCard.description}</p>
               <div className="pazaak-world-card__actions">
-                {(aiCard.aiOptions ?? []).map((option) => (
+                {(aiCard.aiOptions ?? []).map((option: MainMenuAiOptionPreset) => (
                   <button
                     key={option.difficulty}
                     className={`pazaak-world-button pazaak-world-button--${option.tone}`}
@@ -1126,14 +1126,14 @@ function ModeSelectionScreen({
                 <span>Tie {selectedOpponent.tieChance}%</span>
               </div>
               <div className="pazaak-world-opponent-profile__deck" aria-label="Opponent side deck">
-                {selectedOpponent.sideDeckTokens.map((token, index) => <span key={`${selectedOpponent.id}-${token}-${index}`}>{token}</span>)}
+                {selectedOpponent.sideDeckTokens.map((token: string, index: number) => <span key={`${selectedOpponent.id}-${token}-${index}`}>{token}</span>)}
               </div>
               <div className="pazaak-world-opponent-profile__quote">
                 <span aria-hidden="true">{menuIcon("scroll")}</span>
                 <p>{selectedOpponent.phrases.chosen[0] ?? selectedOpponent.description}</p>
               </div>
               <div className="pazaak-world-opponent-profile__sources">
-                {selectedOpponent.sources.map((source) => <span key={source}>{source}</span>)}
+                {selectedOpponent.sources.map((source: string) => <span key={source}>{source}</span>)}
                 {(() => {
                   const rec = localPracticeStats[selectedOpponent.id];
                   if (!rec || rec.played === 0) return null;
@@ -1153,7 +1153,7 @@ function ModeSelectionScreen({
         <section className="pazaak-world-rules">
           <h2><span aria-hidden="true">{menuIcon("scroll")}</span>{MAIN_MENU_PRESET.rulesTitle}</h2>
           <div className="pazaak-world-rules__grid">
-            {MAIN_MENU_PRESET.rules.map((rule) => (
+            {MAIN_MENU_PRESET.rules.map((rule: MainMenuRulePreset) => (
               <article key={rule.title}>
                 <div className={`pazaak-world-rule-icon pazaak-world-rule-icon--${rule.accent}`} aria-hidden="true">{menuIcon(rule.icon)}</div>
                 <h3>{rule.title}</h3>
