@@ -181,3 +181,6 @@ _collected-re-analysis-md/
 image-8921a8f4-7526-4b21-9361-729c3a3fd7c9.png
 _collected-re-analysis-md.zip
 _collected-re-analysis-md-json/
+
+# Playwright (hk86-web e2e)
+apps/hk86-web/test-results/

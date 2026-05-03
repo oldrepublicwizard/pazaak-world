@@ -15,6 +15,7 @@
     "dev:trask-http": "pnpm --filter @openkotor/trask-http-server dev",
     "dev:hk": "pnpm --filter @openkotor/hk-bot dev",
     "dev:hk86-web": "pnpm --filter hk86-web dev",
+    "test:hk86-web": "pnpm --filter hk86-web test:e2e",
     "dev:pazaak": "pnpm --filter @openkotor/pazaak-bot dev",
     "dev:pazaak-world": "pnpm --filter pazaak-world dev",
     "dev:pazaak-nakama": "pnpm --filter @openkotor/pazaak-nakama build && docker compose -f infra/nakama/docker-compose.yml up",
