@@ -87,6 +87,8 @@ export interface SerializedMatch {
   loserId: string | null;
   loserName: string | null;
   settled: boolean;
+  /** Nakama authoritative match id for realtime join (socket); set by backend when available. */
+  nakamaMatchId?: string;
 }
 
 export interface SideCardOption {

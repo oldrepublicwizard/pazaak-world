@@ -173,3 +173,8 @@ scripts/run_ghidra_apply_one_audited.ps1
 scripts/summarize_k1_metadata_report.ps1
 scripts/metadata-audit/K1_k1_win_amazongames_swkotor.exe_audit.json
 scripts/summarize_one_audit.ps1
+_collected-kotor-re-md/
+_collected-re-analysis-md/
+image-8921a8f4-7526-4b21-9361-729c3a3fd7c9.png
+_collected-re-analysis-md.zip
+_collected-re-analysis-md-json/

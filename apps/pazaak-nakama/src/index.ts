@@ -107,8 +107,10 @@ interface RuntimeLobby {
     ready: boolean;
     isHost: boolean;
     isAi: boolean;
+    aiDifficulty?: "easy" | "hard" | "professional";
     joinedAt: string;
   }>;
+  passwordHash: string | null;
   status: "waiting" | "matchmaking" | "in_game" | "closed";
   matchId: string | null;
   createdAt: string;
@@ -638,7 +640,15 @@ const matchHandler: nkruntime.MatchHandler<MatchState> = {
     settleIfNeeded(nk, ctx, state);
     return { state };
   },
-  matchSignal(_ctx, _logger, _nk, _dispatcher, _tick, state, data) {
+  matchSignal(_ctx, _logger, _nk, dispatcher, _tick, state, data) {
+    try {
+      const relay = parsePayload(data).chatRelay as Record<string, unknown> | undefined;
+      if (relay && typeof relay === "object") {
+        dispatcher.broadcastMessage(Opcode.Chat, json(relay), null);
+      }
+    } catch {
+      // Ignore malformed signals.
+    }
     return { state, data };
   },
 };
@@ -751,7 +761,6 @@ function rpcQueueEnqueue(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: 
     enqueuedAt: nowIso(),
     ...(preferredRegions.length > 0 ? { preferredRegions } : {}),
   };
-  queue.push(entry);
 
   const opponentIndex = queue.findIndex((item) => item.userId !== userId);
   if (opponentIndex !== -1) {
@@ -767,6 +776,7 @@ function rpcQueueEnqueue(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: 
     return json({ queue: null, match: { ...hosted.match, nakamaMatchId: hosted.nakamaMatchId } });
   }
 
+  queue.push(entry);
   saveGlobalList(nk, ctx, "queue", queue);
   return json({ queue: entry });
 }
@@ -820,6 +830,7 @@ function createLobbyRecord(ctx: nkruntime.Context, nk: nkruntime.Nakama, body: J
       gameMode: body.gameMode === "wacky" ? "wacky" : "canonical",
     },
     players: [{ userId, displayName: wallet.displayName, ready: true, isHost: true, isAi: false, joinedAt: at }],
+    passwordHash: null,
     status: "waiting",
     matchId: null,
     createdAt: at,
@@ -931,14 +942,38 @@ function rpcLobbyStart(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: nk
 
 function rpcLobbyAddAi(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
   const body = parsePayload(payload);
+  const difficultyRaw = String(body.difficulty ?? "hard");
+  const aiDifficulty = difficultyRaw === "easy" || difficultyRaw === "professional" ? difficultyRaw : "hard";
   const lobby = mutateLobby(ctx, nk, String(body.lobbyId ?? ""), (current) => {
     if (current.players.length >= current.maxPlayers) throw new Error("Lobby is full.");
     const id = `ai:${randomId()}`;
     return {
       ...current,
-      players: [...current.players, { userId: id, displayName: "Pazaak Droid", ready: true, isHost: false, isAi: true, joinedAt: nowIso() }],
+      players: [...current.players, {
+        userId: id,
+        displayName: "Pazaak Droid",
+        ready: true,
+        isHost: false,
+        isAi: true,
+        aiDifficulty,
+        joinedAt: nowIso(),
+      }],
     };
   });
+  return json({ lobby });
+}
+
+function rpcLobbyAiDifficulty(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+  const body = parsePayload(payload);
+  const aiUserId = String(body.aiUserId ?? "");
+  const difficultyRaw = String(body.difficulty ?? "hard");
+  const aiDifficulty = difficultyRaw === "easy" || difficultyRaw === "professional" ? difficultyRaw : "hard";
+  const lobby = mutateLobby(ctx, nk, String(body.lobbyId ?? ""), (current) => ({
+    ...current,
+    players: current.players.map((player) => player.userId === aiUserId && player.isAi
+      ? { ...player, aiDifficulty }
+      : player),
+  }));
   return json({ lobby });
 }
 
@@ -965,7 +1000,7 @@ function rpcTournamentDetail(): string {
   return json({ tournament: null, bracket: { rounds: [] }, standings: null });
 }
 
-function rpcChatSend(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+function rpcChatSend(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
   const userId = requireUser(ctx);
   const body = parsePayload(payload);
   const matchId = String(body.matchId ?? "");
@@ -980,6 +1015,14 @@ function rpcChatSend(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: nkru
   const current = readStorage<{ messages?: unknown[] }>(nk, ctx, "pazaak_chat", matchId, SYSTEM_USER_ID);
   const messages = Array.isArray(current?.messages) ? current.messages : [];
   writeStorage(nk, ctx, "pazaak_chat", matchId, SYSTEM_USER_ID, { messages: [...messages, msg].slice(-100) });
+  const index = matchId ? getMatchIndex(nk, ctx, matchId) : null;
+  if (index?.nakamaMatchId) {
+    try {
+      nk.matchSignal(ctx, index.nakamaMatchId, json({ chatRelay: msg }));
+    } catch (err) {
+      logger.warn("Chat relay matchSignal failed: %s", err instanceof Error ? err.message : String(err));
+    }
+  }
   return json({ message: msg });
 }
 
@@ -1017,6 +1060,7 @@ function InitModule(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkrunt
   initializer.registerRpc("pazaak.lobby_leave", rpcLobbyLeave);
   initializer.registerRpc("pazaak.lobby_start", rpcLobbyStart);
   initializer.registerRpc("pazaak.lobby_add_ai", rpcLobbyAddAi);
+  initializer.registerRpc("pazaak.lobby_ai_difficulty", rpcLobbyAiDifficulty);
   initializer.registerRpc("pazaak.match_get", rpcMatchGet);
   initializer.registerRpc("pazaak.match_resolve", rpcMatchResolve);
   initializer.registerRpc("pazaak.tournaments_list", rpcTournamentsList);

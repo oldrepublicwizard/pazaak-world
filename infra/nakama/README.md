@@ -41,8 +41,11 @@ PazaakWorld no longer needs `VITE_API_BASES` for active matchmaking/gameplay
 when using this stack. Configure the client with:
 
 ```env
+VITE_PAZAAK_BACKEND=nakama
 VITE_NAKAMA_HOST=127.0.0.1
 VITE_NAKAMA_PORT=7350
-VITE_NAKAMA_SSL=0
+VITE_NAKAMA_USE_SSL=false
 VITE_NAKAMA_SERVER_KEY=defaultkey
+# Optional: Trask + legacy OAuth still hit the bot HTTP API:
+# VITE_LEGACY_HTTP_ORIGIN=http://localhost:4001
 ```

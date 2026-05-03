@@ -66,7 +66,8 @@ export default defineConfig({
   base: process.env.BASE || '/',
   server: {
     proxy: {
-      // Proxy /api and /ws to the local pazaak-bot API server during development.
+      // Legacy path: proxy /api and /ws to pazaak-bot (4001). Nakama gameplay bypasses this and
+      // uses VITE_NAKAMA_* + direct calls from the client (see api.ts).
       '/api': {
         target: 'http://localhost:4001',
         changeOrigin: true,
