@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   MAIN_MENU_PRESET,
   MAX_BOARD_SIZE,
+  MAX_CONSECUTIVE_TIES,
   type MatchPlayerState,
   type PazaakMatch,
   PazaakCoordinator,
@@ -11,9 +12,16 @@ import {
   createCustomSideDeck,
   getDefaultPazaakOpponentForAdvisorDifficulty,
   getAdvisorSnapshotForPlayer,
+  getCardTypeRequiredMode,
   getPazaakOpponentById,
+  getSideDeckTokenRequiredMode,
+  isCardTypeAllowedInMode,
+  isWackySideDeckToken,
+  modPythonStyle,
+  normalizeSideDeckToken,
   pazaakOpponents,
   pickPazaakOpponentPhrase,
+  wackySideDeckTokens,
 } from "./index.js";
 
 const createCard = (overrides: Partial<SideCard> = {}): SideCard => ({
@@ -53,6 +61,7 @@ const createMatch = (
   activePlayerIndex: overrides.activePlayerIndex ?? 0,
   setNumber: overrides.setNumber ?? 1,
   setsToWin: overrides.setsToWin ?? 3,
+  gameMode: overrides.gameMode ?? "canonical",
   mainDeck: overrides.mainDeck ?? [],
   phase: overrides.phase ?? "after-draw",
   pendingDraw: overrides.pendingDraw ?? 5,
@@ -249,6 +258,22 @@ test("advisor does not recommend D when it only copies a neutral zero", () => {
   assert.equal(snapshot.recommendation.action, "end_turn");
   assert.equal(snapshot.alternatives[0]?.displayLabel, "Play D (= 0)");
   assert.match(snapshot.alternatives[0]?.rationale ?? "", /neutral 0/i);
+});
+
+test("default advisor difficulties map to the expected HoloPazaak opponents", () => {
+  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("easy").id, "jarjar");
+  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("hard").id, "porkins");
+  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("professional").id, "revan");
+});
+
+test("default advisor opponents expose stable seeded side deck tokens", () => {
+  const easyOpponent = getDefaultPazaakOpponentForAdvisorDifficulty("easy");
+  const hardOpponent = getDefaultPazaakOpponentForAdvisorDifficulty("hard");
+  const professionalOpponent = getDefaultPazaakOpponentForAdvisorDifficulty("professional");
+
+  assert.deepEqual(easyOpponent.sideDeckTokens, ["+1", "+1", "+2", "+2", "+3", "-1", "-1", "-2", "-2", "-3"]);
+  assert.deepEqual(hardOpponent.sideDeckTokens, ["+2", "+3", "+4", "-2", "-3", "-4", "*2", "*3", "+1", "-1"]);
+  assert.deepEqual(professionalOpponent.sideDeckTokens, ["+3", "+4", "-3", "-4", "*2", "*3", "F1", "F2", "TT", "+1"]);
 });
 
 test("main menu preset keeps canonical PazaakWorld card and rule structure", () => {
@@ -615,4 +640,238 @@ test("AI seats execute advisor-backed side-card moves", () => {
   assert.equal(updated.phase, "after-card");
   assert.equal(aiPlayer.total, 20);
   assert.equal(aiPlayer.sideCardsPlayed[0]?.cardId, "valuechange");
+});
+
+// ---------------------------------------------------------------------------
+// Wacky mode — game-mode flag, mod/halve/hard-reset cards, canonical guard.
+// ---------------------------------------------------------------------------
+
+test("modPythonStyle always returns a non-negative remainder", () => {
+  assert.equal(modPythonStyle(7, 3), 1);
+  assert.equal(modPythonStyle(-5, 3), 1);
+  assert.equal(modPythonStyle(-1, 4), 3);
+  assert.equal(modPythonStyle(0, 5), 0);
+  assert.equal(modPythonStyle(9, 4), 1);
+});
+
+test("wacky tokens are rejected in canonical custom decks and accepted in wacky decks", () => {
+  const tokens = ["+1", "+2", "+3", "+4", "+5", "-1", "-2", "-3", "-4", "%3"];
+
+  assert.throws(
+    () => createCustomSideDeck({ tokens, label: "wacky-leak", gameMode: "canonical" }),
+    /Wacky-mode-only/i,
+  );
+
+  const wackyDeck = createCustomSideDeck({ tokens, label: "wacky-mix", gameMode: "wacky" });
+  assert.equal(wackyDeck.sideDeck.length, 10);
+  assert.equal(wackyDeck.sideDeck[9]?.type, "mod_previous");
+  assert.equal(wackyDeck.sideDeck[9]?.value, 3);
+});
+
+test("token metadata surfaces wacky game-mode requirements", () => {
+  assert.equal(isWackySideDeckToken("%4"), true);
+  assert.equal(isWackySideDeckToken("$$"), false);
+  assert.equal(getSideDeckTokenRequiredMode("/2"), "wacky");
+  assert.equal(getSideDeckTokenRequiredMode("+3"), "canonical");
+  assert.equal(getCardTypeRequiredMode("hard_reset"), "wacky");
+  assert.equal(isCardTypeAllowedInMode("hard_reset", "canonical"), false);
+  assert.equal(isCardTypeAllowedInMode("hard_reset", "wacky"), true);
+  assert.equal(isCardTypeAllowedInMode("plus", "wacky"), true);
+  assert.equal(normalizeSideDeckToken("%3"), "%3");
+  assert.equal(normalizeSideDeckToken("/2"), "/2");
+  assert.equal(normalizeSideDeckToken("00"), "00");
+  assert.equal(normalizeSideDeckToken("mod5"), "%5");
+  // All wacky tokens must round-trip through normalization.
+  for (const token of wackySideDeckTokens) {
+    assert.equal(normalizeSideDeckToken(token), token);
+  }
+});
+
+test("canonical matches reject wacky side-card plays even if the card is in hand", () => {
+  const coordinator = new PazaakCoordinator();
+  const match = coordinator.createDirectMatch({
+    channelId: "canonical-rules",
+    challengerId: "p1",
+    challengerName: "Player 1",
+    opponentId: "p2",
+    opponentName: "Player 2",
+  });
+  const player = match.players[match.activePlayerIndex]!;
+  player.total = 17;
+  player.board = [{ value: 10, frozen: false }, { value: 7, frozen: false }];
+  player.hand = [createCard({ id: "halve", label: "/2", value: 0, type: "halve_previous" })];
+  match.mainDeck = [3];
+
+  coordinator.draw(match.id, player.userId);
+
+  assert.throws(
+    () => coordinator.playSideCard(match.id, player.userId, "halve", -3),
+    /Wacky-only card/i,
+  );
+});
+
+test("%N cards replace the previous board card with its Python-style remainder", () => {
+  const coordinator = new PazaakCoordinator();
+  const match = coordinator.createDirectMatch({
+    channelId: "wacky",
+    challengerId: "p1",
+    challengerName: "Player 1",
+    opponentId: "p2",
+    opponentName: "Player 2",
+    gameMode: "wacky",
+  });
+  const player = match.players[match.activePlayerIndex]!;
+  player.hand = [createCard({ id: "mod3", label: "%3", value: 3, type: "mod_previous" })];
+  match.mainDeck = [3];
+
+  coordinator.draw(match.id, player.userId);
+  // Put -5 in the previous slot to exercise the Python-style remainder path.
+  player.board = [{ value: -5, frozen: false, source: "minus" }];
+  player.total = -5;
+
+  const expected = modPythonStyle(-5, 3);
+  assert.equal(expected, 1);
+  const updated = coordinator.playSideCard(match.id, player.userId, "mod3", expected);
+
+  // The previous -5 became +1 (delta = +6), then a 0-valued board slot is pushed for the card itself.
+  assert.equal(updated.phase, "after-card");
+  assert.equal(player.total, 1);
+  assert.equal(player.board.length, 2);
+  assert.equal(player.board[0]?.value, 1);
+  assert.equal(player.board.at(-1)?.value, 0);
+  assert.equal(player.sideCardsPlayed.at(-1)?.appliedValue, expected);
+});
+
+test("/2 cards truncate toward zero when halving negative previous cards", () => {
+  const coordinator = new PazaakCoordinator();
+  const match = coordinator.createDirectMatch({
+    channelId: "wacky",
+    challengerId: "p1",
+    challengerName: "Player 1",
+    opponentId: "p2",
+    opponentName: "Player 2",
+    gameMode: "wacky",
+  });
+  const player = match.players[match.activePlayerIndex]!;
+  player.hand = [createCard({ id: "halve", label: "/2", value: 0, type: "halve_previous" })];
+  match.mainDeck = [5];
+
+  coordinator.draw(match.id, player.userId);
+  // Put -5 in the previous slot.
+  player.board = [{ value: -5, frozen: false, source: "minus" }];
+  player.total = -5;
+
+  const expected = Math.trunc(-5 / 2);
+  assert.equal(expected, -2);
+  const updated = coordinator.playSideCard(match.id, player.userId, "halve", expected);
+
+  // Previous -5 becomes -2 (delta = +3), then a 0-valued board slot is pushed.
+  assert.equal(updated.phase, "after-card");
+  assert.equal(player.total, -2);
+  assert.equal(player.board[0]?.value, -2);
+  assert.equal(player.board.at(-1)?.value, 0);
+});
+
+test("00 hard-reset ties the set, advances consecutive-tie counter, and re-opens with the initial starter", () => {
+  const coordinator = new PazaakCoordinator();
+  const match = coordinator.createDirectMatch({
+    channelId: "wacky",
+    challengerId: "p1",
+    challengerName: "Player 1",
+    opponentId: "p2",
+    opponentName: "Player 2",
+    gameMode: "wacky",
+  });
+  const activePlayer = match.players[match.activePlayerIndex]!;
+  activePlayer.hand = [createCard({ id: "hardreset", label: "00", value: 0, type: "hard_reset" })];
+  activePlayer.total = 12;
+  activePlayer.board = [{ value: 12, frozen: false }];
+  match.mainDeck = [3];
+  match.consecutiveTies = 0;
+  const initialStarter = match.initialStarterIndex;
+  const beforeSet = match.setNumber;
+
+  coordinator.draw(match.id, activePlayer.userId);
+  const updated = coordinator.playSideCard(match.id, activePlayer.userId, "hardreset", 0);
+
+  assert.equal(updated.setNumber, beforeSet + 1);
+  assert.equal(updated.consecutiveTies, 1);
+  assert.equal(updated.lastSetWinnerIndex, null);
+  assert.equal(updated.activePlayerIndex, initialStarter);
+  assert.equal(updated.players[0]?.roundWins, 0);
+  assert.equal(updated.players[1]?.roundWins, 0);
+  assert.match(updated.statusLine, /00 hard reset/i);
+});
+
+test("00 hard-resets stacked to MAX_CONSECUTIVE_TIES settle the match by round wins", () => {
+  const coordinator = new PazaakCoordinator();
+  const match = coordinator.createDirectMatch({
+    channelId: "wacky",
+    challengerId: "p1",
+    challengerName: "Player 1",
+    opponentId: "p2",
+    opponentName: "Player 2",
+    gameMode: "wacky",
+  });
+  const active = match.players[match.activePlayerIndex]!;
+  active.hand = [createCard({ id: "hardreset", label: "00", value: 0, type: "hard_reset" })];
+  active.total = 5;
+  active.board = [{ value: 5, frozen: false }];
+  match.players[0]!.roundWins = 1;
+  match.consecutiveTies = MAX_CONSECUTIVE_TIES - 1;
+  match.mainDeck = [3];
+
+  coordinator.draw(match.id, active.userId);
+  const completed = coordinator.playSideCard(match.id, active.userId, "hardreset", 0);
+
+  assert.equal(completed.phase, "completed");
+  assert.equal(completed.winnerId, "p1");
+});
+
+test("advisor recommends 00 hard-reset when the opponent is about to close out the match", () => {
+  const player = createPlayer({
+    roundWins: 0,
+    total: 8,
+    hand: [createCard({ id: "hardreset", label: "00", value: 0, type: "hard_reset" })],
+    board: [{ value: 8, frozen: false }],
+  });
+  const opponent = createPlayer({
+    userId: "p2",
+    displayName: "Opponent",
+    roundWins: 2,
+    total: 19,
+    stood: true,
+    board: [{ value: 10, frozen: false }, { value: 9, frozen: false }],
+  });
+  const match = createMatch(player, opponent, { gameMode: "wacky" });
+
+  const snapshot = getAdvisorSnapshotForPlayer(match, player.userId, "professional");
+
+  assert.ok(snapshot);
+  assert.equal(snapshot.recommendation.action, "play_side");
+  if (snapshot.recommendation.action !== "play_side") {
+    throw new Error("Expected play_side recommendation");
+  }
+  assert.equal(snapshot.recommendation.cardId, "hardreset");
+  assert.equal(snapshot.category, "pressure");
+});
+
+test("advisor recommends %N as a bust-recovery line when the previous card is large", () => {
+  const player = createPlayer({
+    total: 22,
+    hand: [createCard({ id: "mod4", label: "%4", value: 4, type: "mod_previous" })],
+    board: [{ value: 10, frozen: false }, { value: 6, frozen: false }, { value: 6, frozen: false }],
+  });
+  const opponent = createPlayer({ userId: "p2", displayName: "Opponent", total: 16 });
+  const match = createMatch(player, opponent, { gameMode: "wacky" });
+
+  const snapshot = getAdvisorSnapshotForPlayer(match, player.userId, "professional");
+
+  assert.ok(snapshot);
+  assert.equal(snapshot.recommendation.action, "play_side");
+  if (snapshot.recommendation.action !== "play_side") {
+    throw new Error("Expected play_side recommendation");
+  }
+  assert.equal(snapshot.recommendation.cardId, "mod4");
+  assert.equal(snapshot.category, "recovery");
 });

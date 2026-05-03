@@ -1,3 +1,5 @@
+import { PAZAAK_RULEBOOK } from "./rules.js";
+
 export type MainMenuIconKey =
   | "rocket"
   | "robot"
@@ -135,22 +137,26 @@ export const MAIN_MENU_PRESET: MainMenuPreset = {
       },
     },
   ],
+  /**
+   * Rules shown on the landing page. Sourced from the authoritative rulebook so
+   * the marketing copy and the in-game rulebook never drift.
+   */
   rules: [
     {
       title: "Objective",
-      body: "Get as close to 20 as possible. You only bust if you are still over 20 when the turn resolves.",
+      body: PAZAAK_RULEBOOK.basics[0]?.body ?? "Pull cards to get as close to 20 as possible without going over.",
       icon: "target",
       accent: "republic",
     },
     {
       title: "Cards",
-      body: "Main deck cards (1-10) are drawn first. Your four side cards are drawn once and last the whole match.",
+      body: `Side decks hold ${PAZAAK_RULEBOOK.deckLimits.sideDeckSize} cards; you draw a ${PAZAAK_RULEBOOK.deckLimits.handSize}-card hand once per match. Every side card is spent on use.`,
       icon: "layers",
       accent: "hyperspace",
     },
     {
       title: "Strategy",
-      body: "Save negative and gold cards for recovery, exact 20s, ninth-card wins, and tie-break pressure.",
+      body: PAZAAK_RULEBOOK.strategy[0]?.body ?? "Save recovery cards for busts and gold cards for exact-20 finishes.",
       icon: "star",
       accent: "yellow",
     },

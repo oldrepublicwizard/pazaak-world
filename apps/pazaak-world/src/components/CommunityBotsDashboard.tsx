@@ -11,6 +11,10 @@ type DashboardHealth = "checking" | "online" | "offline";
 type ProbeStatus = "idle" | "checking" | "ok" | "error";
 type OnboardingTrack = "play" | "local" | "publish";
 
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+type JsonObject = { [key: string]: JsonValue };
+
 interface DashboardBotSummary {
   id: DashboardBotId;
   name: string;
@@ -103,7 +107,7 @@ interface DashboardHttpResult {
   latencyMs: number;
   url: string;
   text: string;
-  body: unknown;
+  body: JsonValue | null;
 }
 
 interface DashboardLiveData {
@@ -703,13 +707,13 @@ function loadTraskVoteState(): Record<string, string[]> {
       return {};
     }
 
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = JSON.parse(raw) as JsonValue;
     if (!parsed || typeof parsed !== "object") {
       return {};
     }
 
     return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>).map(([key, value]) => [
+      Object.entries(parsed as JsonObject).map(([key, value]) => [
         key,
         Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [],
       ]),
@@ -871,12 +875,66 @@ function splitFallbackBases(value: string): string[] {
   return value.split(/[\n,]+/u).map((entry) => entry.trim()).filter(Boolean);
 }
 
-function formatPayload(body: unknown, text: string): string {
+function formatPayload(body: JsonValue | null | undefined, text: string): string {
   const raw = body === undefined || body === null ? text : JSON.stringify(body, null, 2);
   if (!raw.trim()) {
     return "No response body.";
   }
   return raw.length > 5000 ? `${raw.slice(0, 5000)}\n... truncated ...` : raw;
+}
+
+function isJsonRecord(body: JsonValue | null): body is JsonObject {
+  return body !== null && typeof body === "object" && !Array.isArray(body);
+}
+
+/** After runtime key/shape checks, align parsed JSON with API types. */
+function dashboardParsedJsonAs<T>(value: JsonValue): T {
+  return value as T;
+}
+
+function readDashboardOAuthProviders(body: JsonValue | null): SocialAuthProviderConfig[] | null {
+  if (!isJsonRecord(body) || !("providers" in body)) return null;
+  const providers = body.providers;
+  if (!Array.isArray(providers)) return null;
+  return dashboardParsedJsonAs<SocialAuthProviderConfig[]>(providers);
+}
+
+function readDashboardOpponents(body: JsonValue | null): PazaakOpponentProfileRecord[] | null {
+  if (!isJsonRecord(body) || !("opponents" in body)) return null;
+  const opponents = body.opponents;
+  if (!Array.isArray(opponents)) return null;
+  return dashboardParsedJsonAs<PazaakOpponentProfileRecord[]>(opponents);
+}
+
+function readDashboardMe(body: JsonValue | null): MeResponse | null {
+  if (!isJsonRecord(body) || !("user" in body)) return null;
+  return dashboardParsedJsonAs<MeResponse>(body);
+}
+
+function readDashboardMatchmakingStats(body: JsonValue | null): MatchmakingStatsResponse | null {
+  if (!isJsonRecord(body) || !("playersInQueue" in body)) return null;
+  return dashboardParsedJsonAs<MatchmakingStatsResponse>(body);
+}
+
+function readDashboardLobbies(body: JsonValue | null): PazaakLobbyRecord[] | null {
+  if (!isJsonRecord(body) || !("lobbies" in body)) return null;
+  const lobbies = body.lobbies;
+  if (!Array.isArray(lobbies)) return null;
+  return dashboardParsedJsonAs<PazaakLobbyRecord[]>(lobbies);
+}
+
+function readDashboardLeaders(body: JsonValue | null): LeaderboardEntry[] | null {
+  if (!isJsonRecord(body) || !("leaders" in body)) return null;
+  const leaders = body.leaders;
+  if (!Array.isArray(leaders)) return null;
+  return dashboardParsedJsonAs<LeaderboardEntry[]>(leaders);
+}
+
+function readDashboardHistory(body: JsonValue | null): PazaakMatchHistoryRecord[] | null {
+  if (!isJsonRecord(body) || !("history" in body)) return null;
+  const history = body.history;
+  if (!Array.isArray(history)) return null;
+  return dashboardParsedJsonAs<PazaakMatchHistoryRecord[]>(history);
 }
 
 async function requestDashboardJson(
@@ -894,10 +952,10 @@ async function requestDashboardJson(
       signal: controller.signal,
     });
     const text = await response.text();
-    let body: unknown = null;
+    let body: JsonValue | null = null;
     if (text.trim()) {
       try {
-        body = JSON.parse(text) as unknown;
+        body = JSON.parse(text) as JsonValue;
       } catch {
         body = null;
       }
@@ -987,7 +1045,7 @@ function createOpenApiSketch(apiBase: string): string {
   const restEndpoints = DASHBOARD_ENDPOINT_GROUPS
     .flatMap((group) => group.endpoints)
     .filter((endpoint) => ["GET", "POST", "PUT", "DELETE"].includes(endpoint.method));
-  const paths: Record<string, Record<string, unknown>> = {};
+  const paths: Record<string, Record<string, JsonValue>> = {};
 
   for (const endpoint of restEndpoints) {
     const openApiPath = endpoint.path.replace(/:([A-Za-z0-9_]+)/gu, "{$1}").replace(/\?.*$/u, "");
@@ -1307,19 +1365,15 @@ export function CommunityBotsDashboard() {
       setHealthDetail(healthResult.reason instanceof Error ? healthResult.reason.message : "Health probe failed.");
     }
 
-    if (providerResult.status === "fulfilled" && providerResult.value.ok && providerResult.value.body && typeof providerResult.value.body === "object" && "providers" in providerResult.value.body) {
-      setOauthProviders((providerResult.value.body as { providers: SocialAuthProviderConfig[] }).providers);
+    if (providerResult.status === "fulfilled" && providerResult.value.ok) {
+      setOauthProviders(readDashboardOAuthProviders(providerResult.value.body));
     } else {
       setOauthProviders(null);
     }
 
     const nextLiveData: DashboardLiveData = {
-      opponents: opponentsResult.status === "fulfilled"
-        && opponentsResult.value.ok
-        && opponentsResult.value.body
-        && typeof opponentsResult.value.body === "object"
-        && "opponents" in opponentsResult.value.body
-        ? ((opponentsResult.value.body as { opponents: PazaakOpponentProfileRecord[] }).opponents ?? [])
+      opponents: opponentsResult.status === "fulfilled" && opponentsResult.value.ok
+        ? readDashboardOpponents(opponentsResult.value.body) ?? []
         : [],
       me: null,
       stats: null,
@@ -1341,24 +1395,24 @@ export function CommunityBotsDashboard() {
 
       const [meResult, statsResult, lobbiesResult, leaderboardResult, historyResult] = signedResults;
 
-      if (meResult.status === "fulfilled" && meResult.value.ok && meResult.value.body && typeof meResult.value.body === "object" && "user" in meResult.value.body) {
-        nextLiveData.me = meResult.value.body as MeResponse;
+      if (meResult.status === "fulfilled" && meResult.value.ok) {
+        nextLiveData.me = readDashboardMe(meResult.value.body);
       }
 
-      if (statsResult.status === "fulfilled" && statsResult.value.ok && statsResult.value.body && typeof statsResult.value.body === "object" && "playersInQueue" in statsResult.value.body) {
-        nextLiveData.stats = statsResult.value.body as MatchmakingStatsResponse;
+      if (statsResult.status === "fulfilled" && statsResult.value.ok) {
+        nextLiveData.stats = readDashboardMatchmakingStats(statsResult.value.body);
       }
 
-      if (lobbiesResult.status === "fulfilled" && lobbiesResult.value.ok && lobbiesResult.value.body && typeof lobbiesResult.value.body === "object" && "lobbies" in lobbiesResult.value.body) {
-        nextLiveData.lobbies = ((lobbiesResult.value.body as { lobbies: PazaakLobbyRecord[] }).lobbies ?? []).slice(0, 4);
+      if (lobbiesResult.status === "fulfilled" && lobbiesResult.value.ok) {
+        nextLiveData.lobbies = (readDashboardLobbies(lobbiesResult.value.body) ?? []).slice(0, 4);
       }
 
-      if (leaderboardResult.status === "fulfilled" && leaderboardResult.value.ok && leaderboardResult.value.body && typeof leaderboardResult.value.body === "object" && "leaders" in leaderboardResult.value.body) {
-        nextLiveData.leaderboard = ((leaderboardResult.value.body as { leaders: LeaderboardEntry[] }).leaders ?? []).slice(0, 5);
+      if (leaderboardResult.status === "fulfilled" && leaderboardResult.value.ok) {
+        nextLiveData.leaderboard = (readDashboardLeaders(leaderboardResult.value.body) ?? []).slice(0, 5);
       }
 
-      if (historyResult.status === "fulfilled" && historyResult.value.ok && historyResult.value.body && typeof historyResult.value.body === "object" && "history" in historyResult.value.body) {
-        nextLiveData.history = ((historyResult.value.body as { history: PazaakMatchHistoryRecord[] }).history ?? []).slice(0, 5);
+      if (historyResult.status === "fulfilled" && historyResult.value.ok) {
+        nextLiveData.history = (readDashboardHistory(historyResult.value.body) ?? []).slice(0, 5);
       }
 
       const firstSignedFailure = signedResults.find((result) => result.status === "rejected")
@@ -2089,6 +2143,16 @@ export function CommunityBotsDashboard() {
                 <code>{activeBot.route}</code>
                 <button type="button" onClick={() => void copyText(activeBot.route)}>{copiedValue === activeBot.route ? "Copied" : "Copy"}</button>
               </div>
+
+              {activeBot.id === "pazaak" && (
+                <div className="bots-dashboard-callout" style={{ marginTop: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(224, 180, 107, 0.45)", background: "rgba(30, 40, 70, 0.35)" }}>
+                  <strong style={{ display: "block", marginBottom: 6 }}>Tournaments</strong>
+                  <p style={{ margin: 0, fontSize: 14, opacity: 0.92 }}>
+                    Single-elim, double-elim, and Swiss brackets run through <code>/pazaak tournament</code> in Discord and sync to the matchmaking worker REST API.
+                    After you sign into the PazaakWorld Activity, use the <strong>Tournaments</strong> button in the main nav for live brackets and standings.
+                  </p>
+                </div>
+              )}
 
               <div className="bots-dashboard-filter-bar" aria-label="Endpoint filters">
                 <label>

@@ -2,9 +2,11 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { promisify } from "node:util";
+import { normalizeRatingDeviation, updateRatingAfterGame, PAZAAK_DEFAULT_RD } from "@openkotor/pazaak-rating";
 
 export * from "./pazaak-account-schema.js";
 export * from "./pazaak-platform-schema.js";
+export { PAZAAK_DEFAULT_MMR, PAZAAK_DEFAULT_RD, PAZAAK_RD_MAX, PAZAAK_RD_MIN, expectedScore } from "@openkotor/pazaak-rating";
 
 const scrypt = promisify(scryptCallback);
 
@@ -18,24 +20,49 @@ export interface RivalryRecord {
   losses: number;
 }
 
-export type PazaakThemePreference = "kotor" | "modern" | "adaptive";
+export type PazaakTableTheme = "ebon-hawk" | "coruscant" | "tatooine" | "manaan" | "dantooine" | "malachor";
+
+export type PazaakCardBackStyle = "classic" | "holographic" | "mandalorian" | "republic" | "sith";
+
+export type PazaakTableAmbience = "cantina" | "ebon-hawk" | "jedi-archives" | "outer-rim" | "sith-sanctum";
+
+export type PazaakSoundTheme = "default" | "cantina" | "droid" | "force";
+
+export type PazaakChatAudience = "everyone" | "guild" | "silent";
 
 export interface PazaakUserSettings {
-  theme: PazaakThemePreference;
+  tableTheme: PazaakTableTheme;
+  cardBackStyle: PazaakCardBackStyle;
+  tableAmbience: PazaakTableAmbience;
   soundEnabled: boolean;
+  soundTheme: PazaakSoundTheme;
   reducedMotionEnabled: boolean;
   turnTimerSeconds: number;
   preferredAiDifficulty: "easy" | "hard" | "professional";
+  confirmForfeit: boolean;
+  highlightValidPlays: boolean;
+  focusMode: boolean;
+  showRatingsInGame: boolean;
+  showGuildEmblems: boolean;
+  showHolocronStreaks: boolean;
+  showPostMatchDebrief: boolean;
+  chatAudience: PazaakChatAudience;
 }
 
 export interface WalletRecord {
   userId: string;
   displayName: string;
   preferredRuntimeDeckId: number | null;
+  ownedSideDeckTokens: string[];
   balance: number;
   wins: number;
   losses: number;
   mmr: number;
+  /**
+   * Rating deviation (Glicko-style “confidence”): high = provisional / uncertain, low = stable.
+   * New wallets start at {@link PAZAAK_DEFAULT_RD} (350), matching Chess.com’s public description of new accounts.
+   */
+  mmrRd: number;
   gamesPlayed: number;
   gamesWon: number;
   lastMatchAt: string | null;
@@ -43,6 +70,10 @@ export interface WalletRecord {
   streak: number;
   bestStreak: number;
   lastDailyAt: string | null;
+  /** Idempotent keys for per-win / per-loss milestone grants (`win:42`, `loss:10`). */
+  progressClaims: string[];
+  unopenedCratesStandard: number;
+  unopenedCratesPremium: number;
   rivalries: Record<string, RivalryRecord>;
   updatedAt: string;
 }
@@ -53,17 +84,39 @@ interface WalletFileShape {
 }
 
 const defaultPazaakUserSettings = (): PazaakUserSettings => ({
-  theme: "kotor",
+  tableTheme: "ebon-hawk",
+  cardBackStyle: "classic",
+  tableAmbience: "cantina",
   soundEnabled: false,
+  soundTheme: "default",
   reducedMotionEnabled: false,
   turnTimerSeconds: 45,
   preferredAiDifficulty: "professional",
+  confirmForfeit: true,
+  highlightValidPlays: true,
+  focusMode: false,
+  showRatingsInGame: true,
+  showGuildEmblems: true,
+  showHolocronStreaks: true,
+  showPostMatchDebrief: true,
+  chatAudience: "everyone",
 });
 
 const normalizeWalletRecord = (wallet: WalletRecord): WalletRecord => ({
   ...wallet,
   preferredRuntimeDeckId: wallet.preferredRuntimeDeckId ?? null,
+  ownedSideDeckTokens: Array.isArray(wallet.ownedSideDeckTokens)
+    ? wallet.ownedSideDeckTokens.filter((token): token is string => typeof token === "string")
+    : [],
+  progressClaims: Array.isArray(wallet.progressClaims)
+    ? wallet.progressClaims.filter((key): key is string => typeof key === "string")
+    : [],
+  unopenedCratesStandard: typeof wallet.unopenedCratesStandard === "number" ? Math.max(0, wallet.unopenedCratesStandard) : 0,
+  unopenedCratesPremium: typeof wallet.unopenedCratesPremium === "number" ? Math.max(0, wallet.unopenedCratesPremium) : 0,
   mmr: wallet.mmr ?? 1000,
+  mmrRd: normalizeRatingDeviation(
+    typeof (wallet as { mmrRd?: number }).mmrRd === "number" ? (wallet as { mmrRd?: number }).mmrRd : undefined,
+  ),
   gamesPlayed: wallet.gamesPlayed ?? wallet.wins + wallet.losses,
   gamesWon: wallet.gamesWon ?? wallet.wins,
   lastMatchAt: wallet.lastMatchAt ?? null,
@@ -73,20 +126,27 @@ const normalizeWalletRecord = (wallet: WalletRecord): WalletRecord => ({
   },
 });
 
-const cloneWallet = (wallet: WalletRecord): WalletRecord => ({
-  ...normalizeWalletRecord(wallet),
-  userSettings: { ...normalizeWalletRecord(wallet).userSettings },
-});
+const cloneWallet = (wallet: WalletRecord): WalletRecord => {
+  const normalized = normalizeWalletRecord(wallet);
+  return {
+    ...normalized,
+    ownedSideDeckTokens: [...normalized.ownedSideDeckTokens],
+    progressClaims: [...normalized.progressClaims],
+    userSettings: { ...normalized.userSettings },
+  };
+};
 
 const createWallet = (userId: string, displayName: string, startingBalance: number): WalletRecord => {
   return {
     userId,
     displayName,
     preferredRuntimeDeckId: null,
+    ownedSideDeckTokens: [],
     balance: startingBalance,
     wins: 0,
     losses: 0,
     mmr: 1000,
+    mmrRd: PAZAAK_DEFAULT_RD,
     gamesPlayed: 0,
     gamesWon: 0,
     lastMatchAt: null,
@@ -94,6 +154,9 @@ const createWallet = (userId: string, displayName: string, startingBalance: numb
     streak: 0,
     bestStreak: 0,
     lastDailyAt: null,
+    progressClaims: [],
+    unopenedCratesStandard: 0,
+    unopenedCratesPremium: 0,
     rivalries: {},
     updatedAt: new Date().toISOString(),
   };
@@ -127,6 +190,8 @@ export type PazaakTableVariant = "canonical" | "multi_seat";
 
 export type PazaakLobbySideboardMode = "runtime_random" | "player_active_custom" | "host_mirror_custom";
 
+export type PazaakLobbyGameMode = "canonical" | "wacky";
+
 export interface PazaakTableSettings {
   variant: PazaakTableVariant;
   maxPlayers: number;
@@ -135,6 +200,7 @@ export interface PazaakTableSettings {
   ranked: boolean;
   allowAiFill: boolean;
   sideboardMode: PazaakLobbySideboardMode;
+  gameMode: PazaakLobbyGameMode;
 }
 
 export interface PazaakAccountRecord {
@@ -178,6 +244,45 @@ export interface PazaakResolvedSessionRecord {
   session: PazaakAccountSessionRecord;
 }
 
+export interface PazaakAccountRepositoryContract {
+  createPasswordAccount(input: {
+    username: string;
+    displayName?: string | undefined;
+    email?: string | null | undefined;
+    passwordHash: string;
+  }): Promise<PazaakAccountRecord>;
+  ensureDiscordAccount(input: {
+    discordUserId: string;
+    username: string;
+    displayName: string;
+  }): Promise<{ account: PazaakAccountRecord; identity: PazaakLinkedIdentityRecord }>;
+  ensureExternalAccount(input: {
+    provider: PazaakIdentityProvider;
+    providerUserId: string;
+    username: string;
+    displayName: string;
+    email?: string | null | undefined;
+    legacyGameUserId?: string | null | undefined;
+  }): Promise<{ account: PazaakAccountRecord; identity: PazaakLinkedIdentityRecord }>;
+  linkDiscordAccount(accountId: string, input: {
+    discordUserId: string;
+    username: string;
+    displayName: string;
+  }): Promise<PazaakLinkedIdentityRecord>;
+  linkExternalIdentity(accountId: string, input: {
+    provider: PazaakIdentityProvider;
+    providerUserId: string;
+    username: string;
+    displayName: string;
+  }): Promise<PazaakLinkedIdentityRecord>;
+  getAccount(accountId: string): Promise<PazaakAccountRecord | undefined>;
+  findPasswordAccount(identifier: string): Promise<{ account: PazaakAccountRecord; credential: PazaakPasswordCredentialRecord } | undefined>;
+  listLinkedIdentities(accountId: string): Promise<readonly PazaakLinkedIdentityRecord[]>;
+  createSession(accountId: string, input: { expiresAt: string; label?: string | null | undefined }): Promise<{ token: string; session: PazaakAccountSessionRecord }>;
+  resolveSessionToken(token: string): Promise<PazaakResolvedSessionRecord | undefined>;
+  deleteSession(sessionId: string): Promise<boolean>;
+}
+
 interface PazaakAccountFileShape {
   version: 1;
   accounts: Record<string, PazaakAccountRecord>;
@@ -218,7 +323,7 @@ const createUniqueAccountUsername = (state: PazaakAccountFileShape, requestedUse
   return `${fallback}-${randomUUID().slice(0, 8)}`;
 };
 
-export class JsonPazaakAccountRepository {
+export class JsonPazaakAccountRepository implements PazaakAccountRepositoryContract {
   private state?: PazaakAccountFileShape;
 
   public constructor(private readonly filePath: string) {}
@@ -603,11 +708,101 @@ export class JsonWalletRepository {
   public constructor(
     private readonly filePath: string,
     private readonly startingBalance: number,
+    private readonly starterOwnedTokens: readonly string[] = [],
   ) {}
 
   public async getWallet(userId: string, displayName: string): Promise<WalletRecord> {
     const state = await this.ensureState();
     const wallet = state.wallets[userId] ?? this.upsertWallet(state, userId, displayName);
+    if (this.starterOwnedTokens.length > 0 && wallet.ownedSideDeckTokens.length === 0) {
+      wallet.ownedSideDeckTokens = [...this.starterOwnedTokens];
+      wallet.updatedAt = new Date().toISOString();
+      await this.persist(state);
+    }
+    return cloneWallet(wallet);
+  }
+
+  /**
+   * Append additional unlocked side-deck tokens (drops, tournament prizes). Does not dedupe —
+   * callers enforce economy rules.
+   */
+  public async addOwnedSideDeckTokens(userId: string, displayName: string, tokens: readonly string[]): Promise<WalletRecord> {
+    if (tokens.length === 0) {
+      return this.getWallet(userId, displayName);
+    }
+
+    const state = await this.ensureState();
+    const wallet = this.upsertWallet(state, userId, displayName);
+    wallet.ownedSideDeckTokens = [...wallet.ownedSideDeckTokens, ...tokens];
+    wallet.updatedAt = new Date().toISOString();
+    await this.persist(state);
+    return cloneWallet(wallet);
+  }
+
+  /**
+   * Applies win/loss milestone crate and card grants in one persist (match settlement).
+   */
+  public async applyMatchProgressionDeltas(
+    updates: ReadonlyArray<{
+      userId: string;
+      displayName: string;
+      addStandardCrates?: number;
+      addPremiumCrates?: number;
+      newProgressKeys?: readonly string[];
+      addTokens?: readonly string[];
+    }>,
+  ): Promise<void> {
+    if (updates.length === 0) {
+      return;
+    }
+
+    const state = await this.ensureState();
+    const now = new Date().toISOString();
+
+    for (const entry of updates) {
+      const wallet = this.upsertWallet(state, entry.userId, entry.displayName);
+      wallet.unopenedCratesStandard = Math.max(0, wallet.unopenedCratesStandard + (entry.addStandardCrates ?? 0));
+      wallet.unopenedCratesPremium = Math.max(0, wallet.unopenedCratesPremium + (entry.addPremiumCrates ?? 0));
+
+      for (const key of entry.newProgressKeys ?? []) {
+        if (!wallet.progressClaims.includes(key)) {
+          wallet.progressClaims.push(key);
+        }
+      }
+
+      const extra = entry.addTokens ?? [];
+      if (extra.length > 0) {
+        wallet.ownedSideDeckTokens = [...wallet.ownedSideDeckTokens, ...extra];
+      }
+
+      wallet.updatedAt = now;
+    }
+
+    await this.persist(state);
+  }
+
+  /**
+   * Consumes one unopened crate of `crateKind` and applies engine-rolled drops (tokens + bonus credits).
+   */
+  public async consumeCrateAndApplyDrops(
+    userId: string,
+    displayName: string,
+    crateKind: "standard" | "premium",
+    drops: { tokens: readonly string[]; bonusCredits: number },
+  ): Promise<WalletRecord> {
+    const state = await this.ensureState();
+    const wallet = this.upsertWallet(state, userId, displayName);
+    const field = crateKind === "standard" ? "unopenedCratesStandard" : "unopenedCratesPremium";
+
+    if (wallet[field] < 1) {
+      throw Object.assign(new Error(`No ${crateKind} crates to open.`), { status: 400 });
+    }
+
+    wallet[field] -= 1;
+    wallet.ownedSideDeckTokens = [...wallet.ownedSideDeckTokens, ...drops.tokens];
+    wallet.balance = Math.max(0, wallet.balance + drops.bonusCredits);
+    wallet.updatedAt = new Date().toISOString();
+    await this.persist(state);
     return cloneWallet(wallet);
   }
 
@@ -686,12 +881,16 @@ export class JsonWalletRepository {
     const winner = this.upsertWallet(state, options.winnerId, options.winnerName);
     const loser = this.upsertWallet(state, options.loserId, options.loserName);
     const matchedAt = new Date().toISOString();
+    const winnerBefore = { mmr: winner.mmr, rd: winner.mmrRd };
+    const loserBefore = { mmr: loser.mmr, rd: loser.mmrRd };
 
     loser.balance = Math.max(0, loser.balance - options.wager);
     loser.losses += 1;
     loser.gamesPlayed += 1;
     loser.lastMatchAt = matchedAt;
-    loser.mmr = Math.max(0, loser.mmr - 15);
+    const loserRating = updateRatingAfterGame(loserBefore, winnerBefore, 0);
+    loser.mmr = loserRating.mmr;
+    loser.mmrRd = loserRating.rd;
     loser.streak = 0;
     loser.updatedAt = matchedAt;
 
@@ -700,7 +899,9 @@ export class JsonWalletRepository {
     winner.gamesPlayed += 1;
     winner.gamesWon += 1;
     winner.lastMatchAt = matchedAt;
-    winner.mmr += 25;
+    const winnerRating = updateRatingAfterGame(winnerBefore, loserBefore, 1);
+    winner.mmr = winnerRating.mmr;
+    winner.mmrRd = winnerRating.rd;
     winner.streak += 1;
     winner.bestStreak = Math.max(winner.bestStreak, winner.streak);
     winner.updatedAt = matchedAt;
@@ -1428,15 +1629,18 @@ const normalizeTableSettings = (settings?: Partial<PazaakTableSettings> | undefi
     : settings?.sideboardMode === "host_mirror_custom"
       ? "host_mirror_custom"
       : "runtime_random";
+  const ranked = settings?.ranked ?? variant === "canonical";
+  const gameMode: PazaakLobbyGameMode = ranked ? "canonical" : (settings?.gameMode === "wacky" ? "wacky" : "canonical");
 
   return {
     variant,
     maxPlayers: variant === "canonical" ? 2 : maxPlayers,
     maxRounds,
     turnTimerSeconds,
-    ranked: settings?.ranked ?? variant === "canonical",
+    ranked,
     allowAiFill: settings?.allowAiFill ?? true,
     sideboardMode,
+    gameMode,
   };
 };
 
@@ -1767,12 +1971,42 @@ export interface PazaakMatchHistoryRecord {
   summary: string;
 }
 
+export interface TraskSourceRecord {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export interface TraskQueryRecord {
+  queryId: string;
+  /** Conversation/thread id (UUID); shareable via Holocron ?thread= */
+  threadId?: string;
+  userId: string;
+  query: string;
+  status: "pending" | "complete" | "failed";
+  answer: string | null;
+  sources: readonly TraskSourceRecord[];
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
 interface PazaakMatchHistoryFileShape {
   version: 1;
   matches: Record<string, PazaakMatchHistoryRecord>;
 }
 
+interface TraskQueryFileShape {
+  version: 1;
+  queries: Record<string, TraskQueryRecord>;
+}
+
 const cloneHistoryRecord = (record: PazaakMatchHistoryRecord): PazaakMatchHistoryRecord => ({ ...record });
+const cloneTraskSource = (source: TraskSourceRecord): TraskSourceRecord => ({ ...source });
+const cloneTraskQueryRecord = (record: TraskQueryRecord): TraskQueryRecord => ({
+  ...record,
+  sources: record.sources.map(cloneTraskSource),
+});
 
 export class JsonPazaakMatchHistoryRepository {
   private state?: PazaakMatchHistoryFileShape;
@@ -1812,6 +2046,62 @@ export class JsonPazaakMatchHistoryRepository {
 
   private async persist(state: PazaakMatchHistoryFileShape): Promise<void> {
     await writeFile(this.filePath, JSON.stringify(state, null, 2), "utf8");
+  }
+}
+
+export class JsonTraskQueryRepository {
+  private state: TraskQueryFileShape | undefined;
+
+  public constructor(private readonly filePath: string) {}
+
+  public async append(record: TraskQueryRecord): Promise<TraskQueryRecord> {
+    this.state = undefined;
+    const state = await this.ensureState();
+    state.queries[record.queryId] = cloneTraskQueryRecord(record);
+    await this.persist(state);
+    this.state = undefined;
+    return cloneTraskQueryRecord(record);
+  }
+
+  public async listForUser(userId: string, limit = 25, threadId?: string): Promise<readonly TraskQueryRecord[]> {
+    this.state = undefined;
+    const state = await this.ensureState();
+    return Object.values(state.queries)
+      .filter((record) => record.userId === userId)
+      .filter((record) => !threadId || record.threadId === threadId)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, Math.max(1, Math.min(100, limit)))
+      .map(cloneTraskQueryRecord);
+  }
+
+  public async listForThread(threadId: string): Promise<readonly TraskQueryRecord[]> {
+    this.state = undefined;
+    const state = await this.ensureState();
+    return Object.values(state.queries)
+      .filter((record) => record.threadId === threadId)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+      .map(cloneTraskQueryRecord);
+  }
+
+  private async ensureState(): Promise<TraskQueryFileShape> {
+    if (this.state) return this.state;
+    await mkdir(path.dirname(this.filePath), { recursive: true });
+
+    try {
+      const raw = await readFile(this.filePath, "utf8");
+      this.state = JSON.parse(raw) as TraskQueryFileShape;
+    } catch {
+      this.state = { version: 1, queries: {} };
+      await this.persist(this.state);
+    }
+
+    return this.state;
+  }
+
+  private async persist(state: TraskQueryFileShape): Promise<void> {
+    const tempPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tempPath, JSON.stringify(state, null, 2), "utf8");
+    await rename(tempPath, this.filePath);
   }
 }
 

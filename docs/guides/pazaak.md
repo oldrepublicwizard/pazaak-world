@@ -13,6 +13,17 @@ Pazaak Bot runs the pazaak table on this server. Pazaak is a card game from Knig
 
 ---
 
+## Canonical vs Wacky mode
+
+- **Canonical** — Only TSL-verified cards. Used for ranked play, matchmaking queues, and wagered Discord challenges. Custom sideboards that include Wacky-only tokens (`%3`–`%6`, `/2`, `00`) are rejected.
+- **Wacky** — Canonical pool **plus** experimental cards: **mod previous** (`%N`), **halve previous** (`/2`), and **hard reset** (`00`). Available in casual private lobbies and local practice when the table explicitly opts in. Ranked lobbies force Canonical regardless of UI.
+
+Create a Wacky Discord lobby with **`/pazaak lobby action:create mode:wacky`** (ranked is implicitly off). In the Activity lobby form, pick **Mode: Wacky** when **Ranked** is unchecked.
+
+Authoritative card text, strategy notes, bust probability tables, and rarity metadata live in **`PAZAAK_RULEBOOK`** (`packages/pazaak-engine/src/rules.ts`) — Discord embeds, the Activity rulebook panel, and this guide should not duplicate prose elsewhere.
+
+---
+
 ## Commands
 
 ### `/pazaak challenge`
@@ -35,7 +46,7 @@ Save or review custom 10-card sideboards. You can keep multiple named sideboards
 
 - **Card Editor** — A paged per-slot picker that lets you browse all available card types from dropdown menus, focus one visible slot at a time, move that slot left or right, and review a quick validation summary without remembering token syntax.
 - **Sideboard Workshop** — In the browser Activity lobby or from the live Activity board header, open the workshop to manage named boards with drag/drop slot reordering, per-slot token pickers, save-and-activate controls, explicit rename, duplication, and fast name filtering outside Discord's component limits. The Activity lobby and live match board now also expose a lighter quick-switch panel so you can swap the active saved board without opening the full workshop.
-- **PazaakWorld Advisor** — During a live match, both the private Discord controls and the Activity board now show a move recommendation based on the shared PazaakWorld-inspired advisor logic. It can suggest when to draw, stand, end the turn, or commit a specific side card, and you can switch between Easy, Hard, and Professional advisor tiers.
+- **PazaakWorld Advisor** — During practice matches, both the private Discord controls and the Activity board show a move recommendation based on the shared PazaakWorld-inspired advisor logic. It can suggest when to draw, stand, end the turn, or commit a specific side card, and you can switch between Easy, Hard, and Professional advisor tiers. The advisor is hidden for wagered head-to-head matches.
 - The advisor now treats exact-hit finishes, recovery cards, standing-pressure lines, and slower setup plays as different categories, so its suggestions should feel less like a flat score threshold and more like actual match guidance.
 - The advisor now also shows a richer snapshot around that recommendation: confidence, the category behind the play, estimated bust risk on the next draw, and a few fallback alternatives when another line is still reasonable.
 - The latest advisor pass also treats special TSL cards more deliberately: D, VV, Tiebreaker, and the Flip 2&4 / Flip 3&6 cards now get their own tactical timing and rationale instead of being treated like ordinary point shifts.
@@ -76,7 +87,31 @@ If you already claimed today, the bot tells you how many hours are left until yo
 
 ### `/pazaak rules`
 
-Shows the full pazaak ruleset in the channel so everyone can read it.
+Opens an interactive rulebook embed sourced from `packages/pazaak-engine/src/rules.ts` (`PAZAAK_RULEBOOK`). Use optional **`section`** (`Basics`, `Cards`, `Strategy`, `Game Modes`, `Tournaments`) to jump directly; otherwise pick a section from the attached select menu. Sections mirror the PazaakWorld **Open full rulebook** panel.
+
+### `/pazaak card`
+
+Private lookup for one side-deck token (`token` required). Shows rarity, sideboard copy limit, mechanic, coaching note, and any TSL verification notes. Supports canonical tokens (`+3`, `*2`, `$$`, `VV`, `TT`, `F1`, `F2`) and Wacky tokens (`%4`, `/2`, `00`).
+
+### `/pazaak strategy`
+
+Private strategy primer with subtract-first doctrine excerpts and a **bust probability chart** (uniform 40-card shoe). Optional **`total`** (0–20) highlights your row on the chart.
+
+### `/pazaak tournament`
+
+Create and run brackets without leaving Discord:
+
+| Subcommand | Purpose |
+|---|---|
+| `create` | Pick format (single / double / Swiss), seats, organizer |
+| `join` / `leave` | Register or withdraw before start |
+| `list` | Inspect open events |
+| `start` | Lock roster and generate bracket |
+| `bracket` / `standings` | View pairings or Swiss table |
+| `report` | Submit results when auto-settlement cannot resolve |
+| `cancel` | Organizer closes the event |
+
+Moderators use `/pazaak-admin tournament` for `force-report` and `reseed`. The Activity **Tournaments** hub consumes the same engine via worker REST + WebSockets.
 
 ### `/pazaak leaderboard`
 

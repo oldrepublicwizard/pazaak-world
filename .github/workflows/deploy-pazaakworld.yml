@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "apps/pazaak-world/**"
+      - "apps/hk86-web/**"
       - "packages/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -87,6 +88,18 @@ jobs:
         run: |
           mkdir -p apps/pazaak-world/dist/qa-webui
           cp -R vendor/qa-webui/dist/. apps/pazaak-world/dist/qa-webui/
+
+      - name: Build HK-86 operator WebUI
+        env:
+          BASE: /bots/hk86/
+          VITE_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
+          VITE_REPO_BASE_URL: https://github.com/${{ github.repository }}
+        run: pnpm --filter hk86-web build
+
+      - name: Publish HK-86 WebUI under /bots/hk86/
+        run: |
+          mkdir -p apps/pazaak-world/dist/hk86
+          cp -R apps/hk86-web/dist/. apps/pazaak-world/dist/hk86/
 
       - name: Add SPA fallback
         run: cp apps/pazaak-world/dist/index.html apps/pazaak-world/dist/404.html

@@ -48,6 +48,92 @@
 }
 
 /* ============================================================
+   PazaakWorld shell presets (ModSync KotorStyle / Kotor2Style / LightStyle)
+   Applied via document.documentElement.dataset.kotorShell from table theme.
+   ============================================================ */
+
+html[data-kotor-shell="k1"] {
+  color-scheme: dark;
+  --shell-accent: #c9a227;
+  --shell-accent-soft: rgba(201, 162, 39, 0.22);
+  --shell-page-bg0: #141008;
+  --shell-page-bg1: #1f1710;
+  --shell-nav-bg: rgba(28, 22, 16, 0.94);
+  --shell-nav-border: rgba(201, 162, 39, 0.38);
+  --shell-panel: rgba(34, 26, 18, 0.92);
+  --shell-panel-border: rgba(139, 105, 20, 0.55);
+  --shell-text: #ece3d4;
+  --shell-muted: #bdae94;
+  --shell-card-deep: rgba(18, 14, 10, 0.96);
+
+  --bg: #141008;
+  --bg-card: #231910;
+  --bg-surface: #2a2016;
+  --bg-hover: #362818;
+  --border: #6b5424;
+  --text: #ece3d4;
+  --text-muted: #c9bb9e;
+  --text-dim: #a09078;
+  --accent: #d4af37;
+  --accent-glow: rgba(212, 175, 55, 0.28);
+  --gold: #d4af37;
+}
+
+html[data-kotor-shell="tsl"] {
+  color-scheme: dark;
+  --shell-accent: #5eb8e8;
+  --shell-accent-soft: hsla(195 100% 50% / 0.22);
+  --shell-page-bg0: #0c1118;
+  --shell-page-bg1: #131c28;
+  --shell-nav-bg: rgba(18, 26, 38, 0.94);
+  --shell-nav-border: rgba(94, 184, 232, 0.35);
+  --shell-panel: rgba(22, 32, 46, 0.92);
+  --shell-panel-border: rgba(72, 92, 118, 0.85);
+  --shell-text: #dde9f5;
+  --shell-muted: #9fb4cb;
+  --shell-card-deep: rgba(10, 14, 20, 0.96);
+
+  --bg: #0c1118;
+  --bg-card: #161f2c;
+  --bg-surface: #1c2736;
+  --bg-hover: #243042;
+  --border: #486294;
+  --text: #dde9f5;
+  --text-muted: #9fb4cb;
+  --text-dim: #7a8ea8;
+  --accent: #5eb8e8;
+  --accent-glow: hsla(195 100% 50% / 0.3);
+  --gold: #f0d070;
+}
+
+html[data-kotor-shell="light"] {
+  color-scheme: light;
+  --shell-accent: #b8860b;
+  --shell-accent-soft: rgba(184, 134, 11, 0.18);
+  --shell-page-bg0: #f2ebe4;
+  --shell-page-bg1: #e8dfd4;
+  --shell-nav-bg: rgba(255, 252, 248, 0.94);
+  --shell-nav-border: rgba(184, 134, 11, 0.42);
+  --shell-panel: rgba(255, 255, 255, 0.92);
+  --shell-panel-border: rgba(80, 72, 64, 0.22);
+  --shell-text: #1c1917;
+  --shell-muted: #57534e;
+  --shell-card-deep: rgba(255, 255, 255, 0.98);
+
+  --bg: #f7f2eb;
+  --bg-card: #fffefb;
+  --bg-surface: #ffffff;
+  --bg-hover: #efe8df;
+  --border: #cfc6bb;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-dim: #78716c;
+  --accent: #b8860b;
+  --accent-glow: rgba(184, 134, 11, 0.22);
+  --gold: #b8860b;
+}
+
+/* ============================================================
    Settings Modal
    ============================================================ */
 
@@ -76,6 +162,24 @@
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease-out;
+}
+
+.admin-policy-modal {
+  max-width: min(720px, 96vw);
+}
+
+.admin-policy-modal__editor {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+  color: var(--text);
+  resize: vertical;
+  min-height: 280px;
 }
 
 .settings-modal-header {
@@ -609,6 +713,28 @@ body {
   border-radius: 12px;
   background: rgba(16, 19, 29, 0.88);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+html[data-kotor-shell="k1"] .activity-global-corner__pill {
+  border-color: var(--shell-panel-border);
+  background: var(--shell-panel);
+}
+
+html[data-kotor-shell="tsl"] .activity-global-corner__pill {
+  border-color: var(--shell-panel-border);
+  background: var(--shell-panel);
+}
+
+html[data-kotor-shell="light"] .activity-global-corner__pill {
+  border-color: var(--shell-panel-border);
+  background: var(--shell-panel);
+}
+
+html[data-kotor-shell="k1"] .activity-global-corner__menu,
+html[data-kotor-shell="tsl"] .activity-global-corner__menu,
+html[data-kotor-shell="light"] .activity-global-corner__menu {
+  border-color: var(--shell-panel-border);
+  background: var(--shell-card-deep);
 }
 
 .activity-global-corner__identity {
@@ -2966,6 +3092,63 @@ body {
     auto;
 }
 
+html[data-kotor-shell="k1"] .pazaak-world-page {
+  color: var(--shell-text);
+  --space-900: #141008;
+  --space-800: #221a12;
+  --space-700: #2f261c;
+  --space-600: #3d3228;
+  --republic: #d4af37;
+  --republic-soft: rgba(212, 175, 55, 0.22);
+  --hyperspace: #c9a227;
+  --hyperspace-soft: rgba(201, 162, 39, 0.2);
+  background:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 210, 160, 0.35), transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(255, 200, 140, 0.28), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(255, 220, 170, 0.32), transparent),
+    linear-gradient(135deg, var(--shell-page-bg0), var(--shell-page-bg1) 55%, #181208);
+  background-repeat: repeat, repeat, repeat, no-repeat;
+  background-size: 100px 100px, 100px 100px, 100px 100px, auto;
+}
+
+html[data-kotor-shell="tsl"] .pazaak-world-page {
+  color: var(--shell-text);
+  --space-900: #0c1118;
+  --space-800: #131d2a;
+  --space-700: #1a2738;
+  --space-600: #243447;
+  --republic: #7dd3fc;
+  --republic-soft: hsla(195 100% 50% / 0.22);
+  --hyperspace: #5eb8e8;
+  --hyperspace-soft: hsla(195 100% 50% / 0.22);
+  background:
+    radial-gradient(2px 2px at 20px 30px, rgba(200, 230, 255, 0.45), transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(180, 210, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(220, 240, 255, 0.4), transparent),
+    linear-gradient(135deg, var(--shell-page-bg0), var(--shell-page-bg1) 55%, #0a1018);
+  background-repeat: repeat, repeat, repeat, no-repeat;
+  background-size: 100px 100px, 100px 100px, 100px 100px, auto;
+}
+
+html[data-kotor-shell="light"] .pazaak-world-page {
+  color: var(--shell-text);
+  --space-900: #e8dfd4;
+  --space-800: #ddd2c4;
+  --space-700: #cfc4b6;
+  --space-600: #c0b5a8;
+  --republic: #8b6914;
+  --republic-soft: rgba(139, 105, 20, 0.15);
+  --hyperspace: #1d6b9e;
+  --hyperspace-soft: hsla(200 70% 36% / 0.12);
+  background:
+    radial-gradient(2px 2px at 20px 30px, rgba(60, 50, 40, 0.12), transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(60, 50, 40, 0.08), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(60, 50, 40, 0.1), transparent),
+    linear-gradient(135deg, var(--shell-page-bg0), var(--shell-page-bg1) 55%, #ebe4dc);
+  background-repeat: repeat, repeat, repeat, no-repeat;
+  background-size: 100px 100px, 100px 100px, 100px 100px, auto;
+}
+
 .pazaak-world-nav {
   position: sticky;
   top: 0;
@@ -2979,6 +3162,18 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding: 0 24px;
+}
+
+html[data-kotor-shell="k1"] .pazaak-world-nav,
+html[data-kotor-shell="tsl"] .pazaak-world-nav,
+html[data-kotor-shell="light"] .pazaak-world-nav {
+  border-bottom-color: var(--shell-nav-border);
+  background: var(--shell-nav-bg);
+}
+
+html[data-kotor-shell="light"] .pazaak-world-status {
+  color: var(--shell-text);
+  background: var(--shell-panel);
 }
 
 .pazaak-world-brand {
@@ -2996,7 +3191,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  margin-right: clamp(240px, 21vw, 340px);
+  margin-right: clamp(260px, 24vw, 380px);
 }
 
 .pazaak-world-status {
@@ -3597,11 +3792,12 @@ body {
 .pazaak-world-auth-card {
   width: min(520px, 100%);
   max-height: min(86dvh, 760px);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   background: rgba(14, 25, 47, 0.96);
   border: 1px solid rgba(56, 74, 111, 0.9);
   border-radius: 16px;
@@ -3656,16 +3852,18 @@ body {
 .pazaak-world-social-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 14px;
 }
 
 .pazaak-world-social-btn {
+  position: relative;
+  z-index: 0;
   border: 1px solid rgba(42, 56, 88, 0.95);
   border-radius: 10px;
   background: rgba(6, 16, 31, 0.9);
   color: #e5ecf8;
-  min-height: 56px;
-  padding: 10px 12px;
+  min-height: 58px;
+  padding: 12px 12px;
   font-size: 14px;
   font-weight: 500;
   text-align: left;
@@ -3705,17 +3903,18 @@ body {
 
 .pazaak-world-social-btn__row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
 }
 
 .pazaak-world-social-btn__label {
-  line-height: 1.15;
+  line-height: 1.2;
   font-weight: 600;
   min-width: 0;
-  flex: 1 1 180px;
+  flex: 1 1 auto;
 }
 
 .pazaak-world-social-btn__pill {
@@ -3792,8 +3991,14 @@ body {
 }
 
 .pazaak-world-social-btn:disabled {
-  opacity: 0.9;
+  opacity: 0.88;
   cursor: not-allowed;
+  filter: brightness(0.96);
+  transform: none;
+}
+
+.pazaak-world-social-btn:disabled:hover {
+  transform: none;
   filter: brightness(0.96);
 }
 
@@ -3823,18 +4028,38 @@ body {
 
 .pazaak-world-floating-status {
   position: fixed;
-  right: 16px;
+  left: 16px;
+  right: auto;
   bottom: 16px;
   z-index: 25;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  max-width: min(420px, calc(100vw - 32px));
   background: rgba(16, 27, 49, 0.88);
   border: 1px solid rgba(42, 56, 88, 0.95);
   border-radius: 10px;
   padding: 9px 12px;
   color: #d9e4f7;
   font-size: 12px;
+}
+
+html[data-kotor-shell="k1"] .pazaak-world-floating-status {
+  background: var(--shell-panel);
+  border-color: var(--shell-panel-border);
+  color: var(--shell-text);
+}
+
+html[data-kotor-shell="tsl"] .pazaak-world-floating-status {
+  background: var(--shell-panel);
+  border-color: var(--shell-panel-border);
+  color: var(--shell-text);
+}
+
+html[data-kotor-shell="light"] .pazaak-world-floating-status {
+  background: var(--shell-panel);
+  border-color: var(--shell-panel-border);
+  color: var(--shell-text);
 }
 
 .pazaak-world-floating-status small {
@@ -3917,7 +4142,8 @@ body {
   .pazaak-world-floating-status {
     left: 12px;
     right: 12px;
-    justify-content: center;
+    max-width: none;
+    justify-content: flex-start;
   }
 
   .pazaak-world-auth-card {
@@ -4181,6 +4407,39 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.lobby-ops-strip {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lobby-ops-strip__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby-ops-strip__label {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.72;
+  color: var(--text);
+}
+
+.lobby-ops-strip__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .lobby-section-header {
@@ -5106,6 +5365,8 @@ body {
    ============================================================ */
 
 .game-board {
+  position: relative;
+  isolation: isolate;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -5119,6 +5380,163 @@ body {
     rgba(27, 21, 15, 0.9),
     rgba(12, 15, 23, 0.96)
   );
+}
+
+/* Table themes (Settings → table theme) */
+.game-board[data-table-theme="ebon-hawk"] {
+  background: linear-gradient(180deg, rgba(34, 26, 18, 0.95), rgba(14, 12, 18, 0.98));
+}
+
+.game-board[data-table-theme="ebon-hawk"] .game-header {
+  background: linear-gradient(180deg, rgba(72, 48, 28, 0.96), rgba(32, 24, 16, 0.98));
+  border-bottom-color: rgba(212, 175, 55, 0.35);
+}
+
+.game-board[data-table-theme="coruscant"] {
+  background: linear-gradient(180deg, rgba(240, 242, 248, 0.96), rgba(210, 218, 232, 0.98));
+}
+
+.game-board[data-table-theme="coruscant"] .game-header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(228, 234, 245, 0.98));
+  border-bottom-color: rgba(30, 64, 120, 0.28);
+}
+
+.game-board[data-table-theme="coruscant"] .game-header__title,
+.game-board[data-table-theme="coruscant"] .status-bar {
+  color: #1a2744;
+}
+
+.game-board[data-table-theme="coruscant"] .game-header__set {
+  color: #4a5a78;
+}
+
+.game-board[data-table-theme="tatooine"] {
+  background: linear-gradient(180deg, rgba(92, 62, 28, 0.92), rgba(42, 28, 14, 0.97));
+}
+
+.game-board[data-table-theme="tatooine"] .game-header {
+  background: linear-gradient(180deg, rgba(120, 78, 32, 0.95), rgba(58, 38, 18, 0.98));
+  border-bottom-color: rgba(255, 184, 96, 0.35);
+}
+
+.game-board[data-table-theme="manaan"] {
+  background: linear-gradient(180deg, rgba(18, 52, 72, 0.94), rgba(8, 22, 38, 0.98));
+}
+
+.game-board[data-table-theme="manaan"] .game-header {
+  background: linear-gradient(180deg, rgba(28, 88, 112, 0.95), rgba(14, 42, 58, 0.98));
+  border-bottom-color: rgba(120, 220, 255, 0.32);
+}
+
+.game-board[data-table-theme="dantooine"] {
+  background: linear-gradient(180deg, rgba(28, 58, 36, 0.92), rgba(12, 28, 18, 0.97));
+}
+
+.game-board[data-table-theme="dantooine"] .game-header {
+  background: linear-gradient(180deg, rgba(42, 92, 56, 0.94), rgba(22, 48, 32, 0.98));
+  border-bottom-color: rgba(140, 220, 160, 0.28);
+}
+
+.game-board[data-table-theme="malachor"] {
+  background: linear-gradient(180deg, rgba(42, 18, 52, 0.94), rgba(12, 8, 22, 0.98));
+}
+
+.game-board[data-table-theme="malachor"] .game-header {
+  background: linear-gradient(180deg, rgba(72, 28, 58, 0.95), rgba(28, 12, 38, 0.98));
+  border-bottom-color: rgba(200, 90, 180, 0.28);
+}
+
+/* Ambience overlays */
+.game-board[data-table-ambience="cantina"]::before,
+.game-board[data-table-ambience="ebon-hawk"]::before,
+.game-board[data-table-ambience="jedi-archives"]::before,
+.game-board[data-table-ambience="outer-rim"]::before,
+.game-board[data-table-ambience="sith-sanctum"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.game-board[data-table-ambience="cantina"]::before {
+  background: radial-gradient(ellipse 120% 80% at 50% 100%, rgba(255, 160, 60, 0.07), transparent 55%);
+}
+
+.game-board[data-table-ambience="ebon-hawk"]::before {
+  background: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(120, 180, 255, 0.06), transparent 50%);
+}
+
+.game-board[data-table-ambience="jedi-archives"]::before {
+  background: radial-gradient(circle at 30% 20%, rgba(180, 220, 255, 0.08), transparent 45%);
+}
+
+.game-board[data-table-ambience="outer-rim"]::before {
+  background: radial-gradient(ellipse at 80% 80%, rgba(255, 120, 40, 0.06), transparent 50%);
+}
+
+.game-board[data-table-ambience="sith-sanctum"]::before {
+  background: radial-gradient(ellipse at 50% 50%, rgba(120, 0, 40, 0.14), transparent 60%);
+}
+
+.main-deck-widget {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 16px 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.main-deck-widget__card-back {
+  width: 38px;
+  height: 54px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 2px solid var(--gold);
+  background: linear-gradient(145deg, rgba(80, 52, 28, 0.95), rgba(28, 22, 16, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.main-deck-widget__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.main-deck-widget__count {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.game-board[data-card-back="holographic"] .main-deck-widget__card-back {
+  border-color: #5ee7ff;
+  background: linear-gradient(145deg, rgba(20, 80, 120, 0.85), rgba(10, 30, 60, 0.95));
+  box-shadow:
+    0 0 14px rgba(94, 231, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.game-board[data-card-back="mandalorian"] .main-deck-widget__card-back {
+  border-color: #b8c4a8;
+  background: linear-gradient(145deg, rgba(58, 62, 48, 0.95), rgba(28, 30, 22, 0.98));
+}
+
+.game-board[data-card-back="republic"] .main-deck-widget__card-back {
+  border-color: #6eb5ff;
+  background: linear-gradient(145deg, rgba(36, 72, 140, 0.88), rgba(18, 36, 72, 0.96));
+}
+
+.game-board[data-card-back="sith"] .main-deck-widget__card-back {
+  border-color: #ff4466;
+  background: linear-gradient(145deg, rgba(90, 12, 28, 0.92), rgba(28, 6, 14, 0.98));
+  box-shadow: 0 0 12px rgba(255, 40, 80, 0.22);
 }
 
 /* Header */
@@ -7114,5 +7532,477 @@ body {
 
   .pazaak-onboarding__card h1 {
     font-size: 28px;
+  }
+}
+
+/* ============================================================
+   Trask Q&A Screen
+   ============================================================ */
+
+.trask-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.trask-nav {
+  flex-shrink: 0;
+}
+
+.trask-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Sources panel (collapsible) */
+.trask-sources-panel {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 16px 24px;
+  animation: slideDown 0.2s ease-out;
+}
+
+.trask-sources-panel__title {
+  font-size: 13px;
+  font-family: "Orbitron", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.trask-sources-panel__empty {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.trask-sources-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trask-source-entry {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  min-width: 220px;
+  max-width: 300px;
+  flex: 1;
+}
+
+.trask-source-entry__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.trask-source-entry__name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trask-source-entry__name:hover {
+  text-decoration: underline;
+}
+
+.trask-source-entry__desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Source badge */
+.trask-source-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.trask-source-badge--website {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.trask-source-badge--github {
+  background: color-mix(in srgb, #4078c8 18%, transparent);
+  color: #7baef8;
+  border: 1px solid color-mix(in srgb, #4078c8 30%, transparent);
+}
+
+.trask-source-badge--discord {
+  background: color-mix(in srgb, #5865f2 18%, transparent);
+  color: #8fa5ff;
+  border: 1px solid color-mix(in srgb, #5865f2 30%, transparent);
+}
+
+/* Main body layout: sidebar + main panel */
+.trask-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.trask-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.trask-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.trask-sidebar__title {
+  font-size: 11px;
+  font-family: "Orbitron", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.trask-sidebar__new-btn {
+  padding: 3px 8px;
+  min-height: 28px;
+  font-size: 11px;
+}
+
+.trask-sidebar__empty {
+  padding: 16px;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+}
+
+.trask-history-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px;
+}
+
+.trask-history-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.trask-history-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.trask-history-item--active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.trask-history-item__query {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.trask-history-item__status {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.trask-history-item__status--complete {
+  color: var(--success);
+}
+
+.trask-history-item__status--failed {
+  color: var(--danger);
+}
+
+.trask-history-item__status--pending {
+  color: var(--warn);
+}
+
+/* Main panel */
+.trask-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Error banner */
+.trask-error-banner {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: #ffb6b6;
+  padding: 10px 20px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Exchange area (scrollable) */
+.trask-exchange-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Welcome state */
+.trask-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: auto;
+  text-align: center;
+  max-width: 480px;
+  padding: 40px 24px;
+}
+
+.trask-welcome__icon {
+  font-size: 48px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.trask-welcome__title {
+  font-family: "Orbitron", monospace;
+  font-size: 28px;
+  color: var(--text);
+}
+
+.trask-welcome__subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Q&A exchange bubble */
+.trask-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.trask-exchange__label {
+  display: block;
+  font-size: 10px;
+  font-family: "Orbitron", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.trask-exchange__question {
+  align-self: flex-end;
+  max-width: 80%;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+}
+
+.trask-exchange__question .trask-exchange__label {
+  text-align: right;
+  color: var(--accent);
+}
+
+.trask-exchange__answer {
+  align-self: flex-start;
+  max-width: 90%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+}
+
+.trask-exchange__answer--failed {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.trask-exchange__text {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.trask-exchange__text--error {
+  color: var(--danger);
+}
+
+.trask-exchange__text--pending {
+  color: var(--text-muted);
+}
+
+/* Animated thinking ellipsis */
+.trask-thinking::after {
+  content: "";
+  display: inline-block;
+  animation: traskEllipsis 1.2s steps(4, end) infinite;
+  width: 1.5em;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+@keyframes traskEllipsis {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+  100% { content: ""; }
+}
+
+/* Source citations */
+.trask-exchange__sources {
+  list-style: none;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trask-source-link {
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.trask-source-link:hover {
+  text-decoration: underline;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Input form */
+.trask-input-form {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trask-input-form__textarea {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 72px;
+  transition: border-color 0.15s;
+}
+
+.trask-input-form__textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.trask-input-form__textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.trask-input-form__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trask-input-form__hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Responsive */
+@media (max-width: 760px) {
+  .trask-body {
+    flex-direction: column;
+  }
+
+  .trask-sidebar {
+    width: 100%;
+    max-height: 180px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .trask-exchange__question,
+  .trask-exchange__answer {
+    max-width: 100%;
+  }
+
+  .trask-exchange-area {
+    padding: 16px;
+  }
+
+  .trask-sources-list {
+    flex-direction: column;
+  }
+
+  .trask-source-entry {
+    max-width: 100%;
   }
 }

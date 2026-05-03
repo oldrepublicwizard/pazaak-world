@@ -13,7 +13,17 @@ export type SideCardType =
   | "copy_previous"
   | "tiebreaker"
   | "flip_two_four"
-  | "flip_three_six";
+  | "flip_three_six"
+  | "mod_previous"
+  | "halve_previous"
+  | "hard_reset";
+
+/**
+ * Canonical vs wacky game mode flag — canonical enforces TSL card pool; wacky
+ * additionally allows %N / /2 / 00 experimental cards. Ranked and matchmaking
+ * play are hard-coded to "canonical" on the server.
+ */
+export type PazaakGameMode = "canonical" | "wacky";
 
 export interface SideCard {
   id: string;
@@ -149,27 +159,51 @@ export interface SavedSideboardCollectionRecord {
   displayName: string;
   activeName: string | null;
   sideboards: SavedSideboardRecord[];
+  ownedSideDeckTokens?: readonly string[];
   updatedAt: string;
 }
 
-export type PazaakThemePreference = "kotor" | "modern" | "adaptive";
+export type PazaakTableTheme = "ebon-hawk" | "coruscant" | "tatooine" | "manaan" | "dantooine" | "malachor";
+
+export type PazaakCardBackStyle = "classic" | "holographic" | "mandalorian" | "republic" | "sith";
+
+export type PazaakTableAmbience = "cantina" | "ebon-hawk" | "jedi-archives" | "outer-rim" | "sith-sanctum";
+
+export type PazaakSoundTheme = "default" | "cantina" | "droid" | "force";
+
+export type PazaakChatAudience = "everyone" | "guild" | "silent";
 
 export interface PazaakUserSettings {
-  theme: PazaakThemePreference;
+  tableTheme: PazaakTableTheme;
+  cardBackStyle: PazaakCardBackStyle;
+  tableAmbience: PazaakTableAmbience;
   soundEnabled: boolean;
+  soundTheme: PazaakSoundTheme;
   reducedMotionEnabled: boolean;
   turnTimerSeconds: number;
   preferredAiDifficulty: AdvisorDifficulty;
+  confirmForfeit: boolean;
+  highlightValidPlays: boolean;
+  focusMode: boolean;
+  showRatingsInGame: boolean;
+  showGuildEmblems: boolean;
+  showHolocronStreaks: boolean;
+  showPostMatchDebrief: boolean;
+  chatAudience: PazaakChatAudience;
 }
 
 export interface WalletRecord {
   userId: string;
   displayName: string;
   preferredRuntimeDeckId: number | null;
+  /** Unlocked side-deck tokens; returned on `/api/me` and sideboard payloads. */
+  ownedSideDeckTokens?: readonly string[];
   balance: number;
   wins: number;
   losses: number;
   mmr: number;
+  /** Rating deviation (“confidence”); high = more volatile MMR swings. See wiki ratings doc. */
+  mmrRd: number;
   gamesPlayed: number;
   gamesWon: number;
   lastMatchAt: string | null;
@@ -177,6 +211,9 @@ export interface WalletRecord {
   streak: number;
   bestStreak: number;
   lastDailyAt: string | null;
+  progressClaims?: readonly string[];
+  unopenedCratesStandard?: number;
+  unopenedCratesPremium?: number;
   updatedAt: string;
 }
 
@@ -211,6 +248,7 @@ export interface PazaakTableSettings {
   ranked: boolean;
   allowAiFill: boolean;
   sideboardMode: PazaakLobbySideboardMode;
+  gameMode?: PazaakGameMode;
 }
 
 export interface PazaakLobbyRecord {
@@ -250,4 +288,85 @@ export interface LeaderboardEntry {
   wins: number;
   losses: number;
   balance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Tournament records — mirrors @openkotor/pazaak-tournament shapes so the
+// Activity can consume them directly without bundling node:crypto.
+// ---------------------------------------------------------------------------
+
+export type TournamentFormat = "single_elim" | "double_elim" | "swiss";
+
+export type TournamentStatus = "registration" | "active" | "completed" | "cancelled";
+
+export type TournamentMatchState = "pending" | "active" | "reported" | "bye" | "cancelled";
+
+export interface TournamentParticipantRecord {
+  userId: string;
+  displayName: string;
+  mmr: number;
+  seed: number | null;
+  status: "registered" | "active" | "eliminated" | "withdrawn" | "champion";
+  registeredAt: number;
+}
+
+export interface TournamentMatchRecord {
+  id: string;
+  round: number;
+  index: number;
+  bracket?: "winners" | "losers" | "grand_final" | "grand_final_reset";
+  state: TournamentMatchState;
+  participantAId: string | null;
+  participantBId: string | null;
+  winnerUserId: string | null;
+  loserUserId: string | null;
+  engineMatchId: string | null;
+  scheduledAt: number | null;
+  completedAt: number | null;
+  winnerAdvancesToMatchId?: string | null;
+  loserAdvancesToMatchId?: string | null;
+}
+
+export interface SwissStandingsRowRecord {
+  userId: string;
+  displayName: string;
+  seed: number | null;
+  wins: number;
+  losses: number;
+  draws: number;
+  buchholz: number;
+  sonnebornBerger: number;
+  opponentIds: string[];
+  matchPoints: number;
+}
+
+export interface TournamentStateRecord {
+  id: string;
+  name: string;
+  guildId: string | null;
+  channelId: string | null;
+  organizerId: string;
+  organizerName: string;
+  format: TournamentFormat;
+  setsPerMatch: number;
+  gameMode: PazaakGameMode;
+  rounds: number;
+  maxParticipants: number | null;
+  status: TournamentStatus;
+  currentRound: number;
+  participants: Record<string, TournamentParticipantRecord>;
+  matches: TournamentMatchRecord[];
+  championUserId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TournamentBracketColumnRecord {
+  round: number;
+  bracket: "winners" | "losers" | "grand_final" | "grand_final_reset" | "swiss";
+  matches: TournamentMatchRecord[];
+}
+
+export interface TournamentBracketViewRecord {
+  columns: TournamentBracketColumnRecord[];
 }

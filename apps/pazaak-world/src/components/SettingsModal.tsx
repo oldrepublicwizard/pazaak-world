@@ -1,21 +1,54 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { soundManager } from "../utils/soundManager.ts";
-import type { PazaakUserSettings } from "../types.ts";
+import type {
+  PazaakCardBackStyle,
+  PazaakChatAudience,
+  PazaakSoundTheme,
+  PazaakTableAmbience,
+  PazaakTableTheme,
+  PazaakUserSettings,
+} from "../types.ts";
 
 const DEFAULT_MODAL_SETTINGS: PazaakUserSettings = {
-  theme: "kotor",
+  tableTheme: "ebon-hawk",
+  cardBackStyle: "classic",
+  tableAmbience: "cantina",
   soundEnabled: false,
+  soundTheme: "default",
   reducedMotionEnabled: false,
   turnTimerSeconds: 45,
   preferredAiDifficulty: "professional",
+  confirmForfeit: true,
+  highlightValidPlays: true,
+  focusMode: false,
+  showRatingsInGame: true,
+  showGuildEmblems: true,
+  showHolocronStreaks: true,
+  showPostMatchDebrief: true,
+  chatAudience: "everyone",
 };
 
+const SETTINGS_EQUALITY_KEYS = [
+  "tableTheme",
+  "cardBackStyle",
+  "tableAmbience",
+  "soundEnabled",
+  "soundTheme",
+  "reducedMotionEnabled",
+  "turnTimerSeconds",
+  "preferredAiDifficulty",
+  "confirmForfeit",
+  "highlightValidPlays",
+  "focusMode",
+  "showRatingsInGame",
+  "showGuildEmblems",
+  "showHolocronStreaks",
+  "showPostMatchDebrief",
+  "chatAudience",
+] as const satisfies readonly (keyof PazaakUserSettings)[];
+
 const areSettingsEqual = (left: PazaakUserSettings, right: PazaakUserSettings): boolean => {
-  return left.theme === right.theme
-    && left.soundEnabled === right.soundEnabled
-    && left.reducedMotionEnabled === right.reducedMotionEnabled
-    && left.turnTimerSeconds === right.turnTimerSeconds
-    && left.preferredAiDifficulty === right.preferredAiDifficulty;
+  return SETTINGS_EQUALITY_KEYS.every((key) => left[key] === right[key]);
 };
 
 interface SettingsModalProps {
@@ -176,19 +209,72 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: Sett
         <div className="settings-modal-content">
           {/* Theme Selection */}
           <div className="settings-group">
-            <label htmlFor="theme-select">Theme</label>
+            <label htmlFor="theme-select">Table theme</label>
             <select
               id="theme-select"
-              value={settings.theme}
-              onChange={(e) => setSettings({ ...settings, theme: e.target.value as any })}
+              value={settings.tableTheme}
+              onChange={(e) => setSettings({ ...settings, tableTheme: e.target.value as PazaakTableTheme })}
             >
-              <option value="kotor">KOTOR Classic</option>
-              <option value="dark">Dark Mode</option>
-              <option value="light">Light Mode</option>
+              <option value="ebon-hawk">Ebon Hawk</option>
+              <option value="coruscant">Coruscant</option>
+              <option value="tatooine">Tatooine</option>
+              <option value="manaan">Manaan</option>
+              <option value="dantooine">Dantooine</option>
+              <option value="malachor">Malachor</option>
+            </select>
+          </div>
+
+          <div className="settings-group">
+            <label htmlFor="card-back-select">Card back</label>
+            <select
+              id="card-back-select"
+              value={settings.cardBackStyle}
+              onChange={(e) =>
+                setSettings({ ...settings, cardBackStyle: e.target.value as PazaakCardBackStyle })
+              }
+            >
+              <option value="classic">Classic</option>
+              <option value="holographic">Holographic</option>
+              <option value="mandalorian">Mandalorian</option>
+              <option value="republic">Republic</option>
+              <option value="sith">Sith</option>
+            </select>
+          </div>
+
+          <div className="settings-group">
+            <label htmlFor="ambience-select">Table ambience</label>
+            <select
+              id="ambience-select"
+              value={settings.tableAmbience}
+              onChange={(e) =>
+                setSettings({ ...settings, tableAmbience: e.target.value as PazaakTableAmbience })
+              }
+            >
+              <option value="cantina">Cantina</option>
+              <option value="ebon-hawk">Ebon Hawk</option>
+              <option value="jedi-archives">Jedi Archives</option>
+              <option value="outer-rim">Outer Rim</option>
+              <option value="sith-sanctum">Sith Sanctum</option>
             </select>
           </div>
 
           {/* Sound Settings */}
+          <div className="settings-group">
+            <label htmlFor="sound-theme-select">Sound theme</label>
+            <select
+              id="sound-theme-select"
+              value={settings.soundTheme}
+              onChange={(e) =>
+                setSettings({ ...settings, soundTheme: e.target.value as PazaakSoundTheme })
+              }
+            >
+              <option value="default">Default</option>
+              <option value="cantina">Cantina</option>
+              <option value="droid">Droid</option>
+              <option value="force">Force</option>
+            </select>
+          </div>
+
           <div className="settings-group">
             <label>
               <input
@@ -231,13 +317,112 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: Sett
             </select>
           </div>
 
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.confirmForfeit}
+                onChange={(e) => setSettings({ ...settings, confirmForfeit: e.target.checked })}
+              />
+              Confirm before forfeit
+            </label>
+          </div>
+
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.highlightValidPlays}
+                onChange={(e) => setSettings({ ...settings, highlightValidPlays: e.target.checked })}
+              />
+              Highlight valid plays
+            </label>
+          </div>
+
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.focusMode}
+                onChange={(e) => setSettings({ ...settings, focusMode: e.target.checked })}
+              />
+              Focus mode (minimal HUD)
+            </label>
+          </div>
+
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.showRatingsInGame}
+                onChange={(e) => setSettings({ ...settings, showRatingsInGame: e.target.checked })}
+              />
+              Show ratings in game
+            </label>
+            <p className="settings-field-hint" style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.78 }}>
+              Chess.com publishes the <strong>Glicko</strong> family (not pure Elo): a displayed rating plus <strong>rating deviation (RD)</strong> so upsets and provisional accounts can move more while the system is uncertain. PazaakWorld uses the same ideas—expected score from the MMR gap plus per-player RD—with a compact single-game update. See{" "}
+              <a href="https://support.chess.com/en/articles/8566476-how-do-ratings-work-on-chess-com" target="_blank" rel="noreferrer">
+                How do ratings work on Chess.com?
+              </a>
+              {" "}and <code>wiki/apps/pazaak-world/ratings.md</code>.
+            </p>
+          </div>
+
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.showGuildEmblems}
+                onChange={(e) => setSettings({ ...settings, showGuildEmblems: e.target.checked })}
+              />
+              Show guild emblems
+            </label>
+          </div>
+
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.showHolocronStreaks}
+                onChange={(e) => setSettings({ ...settings, showHolocronStreaks: e.target.checked })}
+              />
+              Show Holocron streaks
+            </label>
+          </div>
+
+          <div className="settings-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.showPostMatchDebrief}
+                onChange={(e) => setSettings({ ...settings, showPostMatchDebrief: e.target.checked })}
+              />
+              Show post-match debrief
+            </label>
+          </div>
+
+          <div className="settings-group">
+            <label htmlFor="chat-audience-select">Chat audience</label>
+            <select
+              id="chat-audience-select"
+              value={settings.chatAudience}
+              onChange={(e) =>
+                setSettings({ ...settings, chatAudience: e.target.value as PazaakChatAudience })
+              }
+            >
+              <option value="everyone">Everyone</option>
+              <option value="guild">Guild only</option>
+              <option value="silent">Silent</option>
+            </select>
+          </div>
+
           {/* AI Difficulty */}
           <div className="settings-group">
             <label htmlFor="ai-difficulty-select">Default AI Difficulty</label>
             <select
               id="ai-difficulty-select"
               value={settings.preferredAiDifficulty}
-              onChange={(e) => setSettings({ ...settings, preferredAiDifficulty: e.target.value as any })}
+              onChange={(e) => setSettings({ ...settings, preferredAiDifficulty: e.target.value as PazaakUserSettings["preferredAiDifficulty"] })}
             >
               <option value="easy">Easy</option>
               <option value="hard">Hard</option>
