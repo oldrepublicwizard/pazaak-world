@@ -1977,6 +1977,14 @@ export interface TraskSourceRecord {
   url: string;
 }
 
+/** Append-only timeline for Holocron / clients polling `GET /thread/:id`. */
+export interface TraskQueryLiveEvent {
+  at: string;
+  phase: string;
+  detail?: string;
+  sources?: readonly TraskSourceRecord[];
+}
+
 export interface TraskQueryRecord {
   queryId: string;
   /** Conversation/thread id (UUID); shareable via Holocron ?thread= */
@@ -1989,6 +1997,8 @@ export interface TraskQueryRecord {
   error: string | null;
   createdAt: string;
   completedAt: string | null;
+  /** Server-written progression while status is pending (and frozen at completion). */
+  liveTrace?: readonly TraskQueryLiveEvent[];
 }
 
 interface PazaakMatchHistoryFileShape {
@@ -2003,9 +2013,15 @@ interface TraskQueryFileShape {
 
 const cloneHistoryRecord = (record: PazaakMatchHistoryRecord): PazaakMatchHistoryRecord => ({ ...record });
 const cloneTraskSource = (source: TraskSourceRecord): TraskSourceRecord => ({ ...source });
+const cloneTraskLiveEvent = (ev: TraskQueryLiveEvent): TraskQueryLiveEvent => ({
+  ...ev,
+  ...(ev.sources ? { sources: ev.sources.map(cloneTraskSource) } : {}),
+});
+
 const cloneTraskQueryRecord = (record: TraskQueryRecord): TraskQueryRecord => ({
   ...record,
   sources: record.sources.map(cloneTraskSource),
+  ...(record.liveTrace ? { liveTrace: record.liveTrace.map(cloneTraskLiveEvent) } : {}),
 });
 
 export class JsonPazaakMatchHistoryRepository {
@@ -2055,12 +2071,18 @@ export class JsonTraskQueryRepository {
   public constructor(private readonly filePath: string) {}
 
   public async append(record: TraskQueryRecord): Promise<TraskQueryRecord> {
+    return this.upsert(record);
+  }
+
+  /** Insert or replace by `queryId` (used for pending → live updates → final). */
+  public async upsert(record: TraskQueryRecord): Promise<TraskQueryRecord> {
     this.state = undefined;
     const state = await this.ensureState();
-    state.queries[record.queryId] = cloneTraskQueryRecord(record);
+    const cloned = cloneTraskQueryRecord(record);
+    state.queries[record.queryId] = cloned;
     await this.persist(state);
     this.state = undefined;
-    return cloneTraskQueryRecord(record);
+    return cloneTraskQueryRecord(cloned);
   }
 
   public async listForUser(userId: string, limit = 25, threadId?: string): Promise<readonly TraskQueryRecord[]> {
@@ -2081,6 +2103,13 @@ export class JsonTraskQueryRepository {
       .filter((record) => record.threadId === threadId)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
       .map(cloneTraskQueryRecord);
+  }
+
+  public async getByQueryId(queryId: string): Promise<TraskQueryRecord | undefined> {
+    this.state = undefined;
+    const state = await this.ensureState();
+    const row = state.queries[queryId];
+    return row ? cloneTraskQueryRecord(row) : undefined;
   }
 
   private async ensureState(): Promise<TraskQueryFileShape> {
