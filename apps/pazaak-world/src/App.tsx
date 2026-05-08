@@ -79,6 +79,7 @@ import { ConnectionStatus } from "./components/ConnectionStatus.tsx";
 import { subscribeToActivityRelay, type ActivityRelayConnectionState, type ActivityRelayMember } from "./activityRelay.ts";
 import type { CardWorldConfig } from "@openkotor/platform";
 import { discordHubRoute, pazaakWorldRoute } from "./deployRoutes.ts";
+import { isGuestLikeAccessToken } from "./nakamaClient.ts";
 
 const STANDALONE_AUTH_TOKEN_KEY = "pazaak-world-standalone-auth-token-v1";
 const USER_SETTINGS_STORAGE_KEY = "pazaak-user-settings-v1";
@@ -599,6 +600,9 @@ function PazaakWorldApp() {
     if (!activeSession?.accessToken) {
       return;
     }
+    if (isGuestLikeAccessToken(activeSession.accessToken)) {
+      return;
+    }
 
     setCornerBusy(true);
     try {
@@ -611,6 +615,10 @@ function PazaakWorldApp() {
 
   const handleCornerLogout = useCallback(async () => {
     if (!activeSession?.accessToken) {
+      return;
+    }
+    if (isGuestLikeAccessToken(activeSession.accessToken)) {
+      setShowAuthDialog(true);
       return;
     }
 
@@ -655,11 +663,14 @@ function PazaakWorldApp() {
       {content}
       <GlobalAccountCorner
         username={activeSession?.username ?? "Guest Pilot"}
-        mmr={cornerWallet?.mmr ?? (activeSession ? 1000 : null)}
+        mmr={
+          cornerWallet?.mmr
+            ?? (activeSession != null && !isGuestLikeAccessToken(activeSession.accessToken) ? 1000 : null)
+        }
         mmrRd={cornerWallet?.mmrRd ?? null}
         isOnline={isOnline}
-        canLogout={Boolean(activeSession?.accessToken)}
-        canJumpToLobby={Boolean(activeSession?.accessToken) && state.stage !== "lobby"}
+        canLogout={activeSession != null && !isGuestLikeAccessToken(activeSession.accessToken)}
+        canJumpToLobby={Boolean(activeSession) && state.stage !== "lobby"}
         busy={cornerBusy}
         currentSettings={userSettings}
         socketState={matchSocketState}
@@ -697,7 +708,22 @@ function PazaakWorldApp() {
         }}
       />
     </>
-  ), [activeSession, authDialogMessage, cornerBusy, cornerWallet?.mmr, cornerWallet?.mmrRd, handleCornerLogout, handleCornerRefresh, isOnline, routePostAuth, showAuthDialog, state.stage, userSettings, matchSocketState, handleSettingsSave]);
+  ), [
+    activeSession,
+    authDialogMessage,
+    cornerBusy,
+    cornerWallet?.mmr,
+    cornerWallet?.mmrRd,
+    handleCornerLogout,
+    handleCornerRefresh,
+    isOnline,
+    routePostAuth,
+    showAuthDialog,
+    state.stage,
+    userSettings,
+    matchSocketState,
+    handleSettingsSave,
+  ]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);

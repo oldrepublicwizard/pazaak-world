@@ -6,6 +6,7 @@ import type { PazaakUserSettings } from "../types.ts";
 import type { MatchSocketConnectionState } from "../api.ts";
 import { soundManager } from "../utils/soundManager.ts";
 import { formatCornerRatingSubtitle } from "../utils/ratingLabels.ts";
+import { isGuestLikeAccessToken } from "../nakamaClient.ts";
 
 const menuIcon = (icon: string): string => {
   const MENU_ICON_MAP: Record<string, string> = {
@@ -320,7 +321,7 @@ export function GlobalAccountCorner({
               Return to lobby
             </button>
           ) : null}
-          {accessToken ? (
+          {accessToken && !isGuestLikeAccessToken(accessToken) ? (
             <button
               className="activity-global-corner__item"
               type="button"
@@ -372,7 +373,7 @@ export function GlobalAccountCorner({
         onClose={() => setSettingsModalOpen(false)}
         onSave={onSettingsSave || (async () => {})}
       />
-      {accessToken ? (
+      {accessToken && !isGuestLikeAccessToken(accessToken) ? (
         <AdminPolicyPanel
           isOpen={adminPolicyOpen}
           accessToken={accessToken}
