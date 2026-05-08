@@ -1,0 +1,41 @@
+# Opinionated stack for a small VM (Oracle Cloud Always Free, a VPS, etc.):
+# same network as local compose, but Nakama image bundles runtime + cloud entrypoint.
+#
+# From repo root (after `pnpm --filter @openkotor/pazaak-nakama build`):
+#   export NAKAMA_POSTGRES_PASSWORD='choose-a-strong-password'
+#   docker compose -f infra/nakama/docker-compose.cloud.yml up -d
+#
+# Open TCP 7350 (and optionally 7349) on the host firewall / security list. Prefer SSH
+# tunnel for console (7351) rather than exposing it publicly.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_PASSWORD: ${NAKAMA_POSTGRES_PASSWORD:-local_nakama_password}
+      POSTGRES_USER: nakama
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nakama -d nakama"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - nakama-postgres-cloud:/var/lib/postgresql/data
+
+  nakama:
+    build:
+      context: ../..
+      dockerfile: infra/nakama/Dockerfile.cloud
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NAKAMA_DATABASE_ADDRESS: nakama:${NAKAMA_POSTGRES_PASSWORD:-local_nakama_password}@postgres:5432/nakama?sslmode=disable
+    ports:
+      - "7350:7350"
+      - "7349:7349"
+
+volumes:
+  nakama-postgres-cloud:

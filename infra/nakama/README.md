@@ -16,6 +16,15 @@ docker compose -f infra/nakama/docker-compose.yml up
 pnpm dev:pazaak-world
 ```
 
+## Cloud / VPS (production-shaped)
+
+For **ongoing $0** hosting (Oracle / GCP Always Free shapes, or any VM you already pay $0 for), use
+**[docs/nakama-cloud-hosting.md](../../docs/nakama-cloud-hosting.md)** plus:
+
+- **`docker-compose.cloud.yml`** — Postgres + image built from **`Dockerfile.cloud`**
+- **`Dockerfile.cloud`** — Nakama 3.37 + bundled `modules/pazaak-world.js` + `cloud.yml`
+- **`docker-entrypoint.cloud.sh`** — `migrate up` then `nakama` with `--database.address` from **`NAKAMA_DATABASE_ADDRESS`**
+
 Nakama ports:
 
 - `7350` HTTP and realtime socket API

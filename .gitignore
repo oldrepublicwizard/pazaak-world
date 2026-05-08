@@ -184,3 +184,6 @@ _collected-re-analysis-md-json/
 
 # Playwright (hk86-web e2e)
 apps/hk86-web/test-results/
+
+# Local-only Cloudflare creds for scripts/gh-cloudflare-push-secrets-and-deploy.ps1 (never commit)
+.env.cf.local

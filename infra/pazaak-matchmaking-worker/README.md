@@ -71,8 +71,13 @@ pnpm dlx wrangler dev --config infra/pazaak-matchmaking-worker/wrangler.toml
 pnpm dlx wrangler deploy --config infra/pazaak-matchmaking-worker/wrangler.toml
 ```
 
+CI validates the bundle without Cloudflare credentials via `wrangler deploy --dry-run` in
+`.github/workflows/pazaak-matchmaking-worker.yml` (`verify-bundle` job).
+
 After deploy, use the worker URL in `VITE_API_BASES` (comma-separated list) to
-enable frontend failover.
+enable frontend failover. To keep a **bot API first** and the Worker second, set
+`VITE_LEGACY_HTTP_ORIGIN` to the bot public origin and put the Worker in `VITE_API_BASES` / `PAZAAK_API_BASES`
+(see `docs/pazaak-world-hosting.md`).
 
 For **regional entrypoints** on container PaaS (Fly, Render, Railway, Koyeb) that still proxy to this Worker, see [`infra/matchmaking-inducer/README.md`](../matchmaking-inducer/README.md).
 

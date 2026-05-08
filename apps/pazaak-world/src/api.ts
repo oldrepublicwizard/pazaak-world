@@ -18,13 +18,18 @@ import type {
   WalletRecord,
 } from "./types.ts";
 import {
+  SOCIAL_AUTH_PROVIDERS,
+  trimTrailingSlashes,
+  type CardWorldConfig,
+  type SocialAuthProvider,
+} from "@openkotor/platform";
+import {
   createBrowserApiClient,
   parseConfiguredBases,
   resolveBrowserApiBases,
   subscribeToReconnectingWebSocket,
   type RealtimeConnectionState,
 } from "@openkotor/platform/browser";
-import { SOCIAL_AUTH_PROVIDERS, type CardWorldConfig, type SocialAuthProvider } from "@openkotor/platform";
 import { DefaultSocket } from "@heroiclabs/nakama-js";
 import {
   bootstrapNakamaActivitySession,
@@ -89,14 +94,35 @@ export interface SocialAuthStartResponse {
   redirectUrl: string;
 }
 
+/** Dedupe origins so `VITE_LEGACY_HTTP_ORIGIN` + `VITE_API_BASES` can chain bot → Worker failover. */
+const mergeApiBasesDeduped = (primary: readonly string[], secondary: readonly string[]): string[] => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const group of [primary, secondary]) {
+    for (const raw of group) {
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      const key = trimTrailingSlashes(trimmed);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(trimmed);
+    }
+  }
+  return out;
+};
+
 const legacyOrigin = String(import.meta.env.VITE_LEGACY_HTTP_ORIGIN ?? "").trim();
+const legacyBases = legacyOrigin ? parseConfiguredBases(legacyOrigin) : [];
+const configuredViteBases = parseConfiguredBases(import.meta.env.VITE_API_BASES);
+
 const apiClient = createBrowserApiClient({
-  apiBases: legacyOrigin
-    ? parseConfiguredBases(legacyOrigin)
-    : resolveBrowserApiBases({
-        configuredBases: parseConfiguredBases(import.meta.env.VITE_API_BASES),
-        localApiPort: 4001,
-      }),
+  apiBases:
+    legacyBases.length > 0
+      ? mergeApiBasesDeduped(legacyBases, configuredViteBases)
+      : resolveBrowserApiBases({
+          configuredBases: configuredViteBases,
+          localApiPort: 4001,
+        }),
 });
 
 const apiFetch = apiClient.requestJsonWithBearer;

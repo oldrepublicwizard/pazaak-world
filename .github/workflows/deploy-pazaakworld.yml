@@ -86,12 +86,20 @@ jobs:
         env:
           BASE: ${{ steps.base.outputs.base_path }}
           VITE_API_BASES: ${{ steps.api.outputs.api_bases }}
+          # Optional: prepended before VITE_API_BASES so embedded bot (OAuth/Trask) is primary and PAZAAK_API_BASES can list Worker fallbacks.
+          VITE_LEGACY_HTTP_ORIGIN: ${{ vars.VITE_LEGACY_HTTP_ORIGIN }}
           VITE_REPO_BASE_URL: https://github.com/${{ github.repository }}
           VITE_WIKI_BASE_URL: ${{ vars.WIKI_BASE_URL }}
           VITE_TRASK_DISCORD_APPLICATION_ID: ${{ vars.TRASK_DISCORD_APP_ID }}
           VITE_HK_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
           VITE_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
           VITE_PAZAAK_DISCORD_APPLICATION_ID: ${{ vars.PAZAAK_DISCORD_APP_ID }}
+          # Optional: point the static Pages bundle at a hosted Nakama (see docs/nakama-cloud-hosting.md).
+          VITE_PAZAAK_BACKEND: ${{ vars.VITE_PAZAAK_BACKEND }}
+          VITE_NAKAMA_HOST: ${{ vars.VITE_NAKAMA_HOST }}
+          VITE_NAKAMA_PORT: ${{ vars.VITE_NAKAMA_PORT }}
+          VITE_NAKAMA_USE_SSL: ${{ vars.VITE_NAKAMA_USE_SSL }}
+          VITE_NAKAMA_SERVER_KEY: ${{ vars.VITE_NAKAMA_SERVER_KEY }}
         run: pnpm --filter pazaak-world build
 
       - name: Build Holocron web (Trask Q&A SPA)

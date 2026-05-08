@@ -9,6 +9,7 @@ on:
       - "packages/pazaak-engine/**"
       - "packages/pazaak-policy/**"
       - "packages/pazaak-tournament/**"
+      - "packages/platform/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/pazaak-matchmaking-worker.yml"
   workflow_dispatch:
@@ -21,7 +22,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: Install workspace (worker bundle resolves workspace packages)
+        run: pnpm install --frozen-lockfile
+
+      - name: Wrangler dry-run (no Cloudflare secrets required)
+        run: pnpm dlx wrangler@4.87.0 deploy --config infra/pazaak-matchmaking-worker/wrangler.toml --dry-run
+
   deploy:
+    needs: verify-bundle
     runs-on: ubuntu-latest
     steps:
       - name: Check Cloudflare secrets

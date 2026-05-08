@@ -1,0 +1,10 @@
+# Build from repository root after the JS runtime is compiled:
+#   pnpm --filter @openkotor/pazaak-nakama build
+#   docker build -f infra/nakama/Dockerfile.cloud -t your-registry/pazaakworld-nakama .
+FROM registry.heroiclabs.com/heroiclabs/nakama:3.37.0
+COPY infra/nakama/cloud.yml /nakama/data/cloud.yml
+COPY infra/nakama/modules/pazaak-world.js /nakama/data/modules/pazaak-world.js
+COPY infra/nakama/modules/pazaak-world.js.map /nakama/data/modules/pazaak-world.js.map
+COPY infra/nakama/docker-entrypoint.cloud.sh /docker-entrypoint.cloud.sh
+# Invoke via sh so the script stays executable even if the build context strips the +x bit.
+ENTRYPOINT ["/bin/sh", "/docker-entrypoint.cloud.sh"]

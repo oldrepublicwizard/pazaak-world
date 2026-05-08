@@ -449,21 +449,28 @@ const DASHBOARD_RUNBOOKS: DashboardRunbook[] = [
     title: "Cloudflare Worker Fallback",
     summary: "Use a free Worker + Durable Object API when the embedded bot API is not publicly reachable.",
     steps: [
-      "Create Cloudflare API token and account id repository secrets for the worker deployment workflow.",
-      "Deploy infra/pazaak-matchmaking-worker with wrangler; it implements auth, sessions, settings, queues, lobbies, history, leaderboard, and opponents.",
-      "Set PAZAAK_API_BASES to the worker URL, optionally followed by secondary API origins.",
+      "Create Cloudflare API token and account id repository secrets for the worker deployment workflow (push to main runs `wrangler deploy --dry-run` without secrets).",
+      "Deploy infra/pazaak-matchmaking-worker with wrangler or merge the worker workflow on main; it implements auth, sessions, settings, queues, lobbies, history, leaderboard, and opponents.",
+      "Set PAZAAK_API_BASES to the worker URL, optionally followed by other origins. For bot-first failover, also set repository variable VITE_LEGACY_HTTP_ORIGIN to the public bot HTTP origin so it is prepended before PAZAAK_API_BASES in the Pages bundle.",
       "Keep authoritative match actions on the embedded bot API; the Worker intentionally returns explicit errors for live match simulation.",
     ],
     commands: [
       { label: "Local Worker", command: "corepack pnpm dlx wrangler dev --config infra/pazaak-matchmaking-worker/wrangler.toml", detail: "Runs the fallback API locally." },
       { label: "Deploy Worker", command: "corepack pnpm dlx wrangler deploy --config infra/pazaak-matchmaking-worker/wrangler.toml", detail: "Publishes the fallback API." },
       { label: "Pages API bases", command: "gh variable set PAZAAK_API_BASES --body \"https://your-worker.workers.dev\" --repo OpenKotOR/community-bots", detail: "Feeds VITE_API_BASES during Pages build." },
+      {
+        label: "Pages bot-first chain",
+        command:
+          "gh variable set VITE_LEGACY_HTTP_ORIGIN --body \"https://your-bot-host.example\" --repo OpenKotOR/community-bots",
+        detail: "Optional: prepend bot origin before Worker URLs for OAuth/Trask + API failover.",
+      },
     ],
     checks: [
       "Worker GET /api/ping responds before adding it to PAZAAK_API_BASES.",
       "Queue and lobby endpoints work with an app bearer token.",
       "Live match actions are routed to the embedded API when authoritative multiplayer is needed.",
       "Pages build logs show VITE_API_BASES populated when remote APIs are intended.",
+      "GitHub Actions worker workflow verify-bundle step passes (wrangler --dry-run) on pushes touching the worker.",
     ],
   },
   {
