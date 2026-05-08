@@ -117,18 +117,18 @@ export interface ResearchWizardRuntimeConfig {
   timeoutMs: number;
 }
 
-const hasGptResearcherPackage = (rootDir: string): boolean =>
+const hasAiResearchWizardPackage = (rootDir: string): boolean =>
   existsSync(join(rootDir, "gpt_researcher"));
 
 /**
  * Walks upward from `startDir` looking for `vendor/ai-researchwizard` with a `gpt_researcher/` tree.
  * Covers `pnpm --filter … dev` where cwd is `apps/trask-http-server` instead of the monorepo root.
  */
-const findVendorAiResearchwizard = (startDir: string, maxHops = 24): string | undefined => {
+const findVendorAiResearchWizard = (startDir: string, maxHops = 24): string | undefined => {
   let dir = resolve(startDir);
   for (let hop = 0; hop < maxHops; hop++) {
     const candidate = join(dir, "vendor", "ai-researchwizard");
-    if (hasGptResearcherPackage(candidate)) {
+    if (hasAiResearchWizardPackage(candidate)) {
       return candidate;
     }
     const parent = dirname(dir);
@@ -147,13 +147,13 @@ const resolveGptResearcherRoot = (env: NodeJS.ProcessEnv): string | undefined =>
     return resolve(explicit.trim());
   }
 
-  const fromCwd = findVendorAiResearchwizard(process.cwd());
+  const fromCwd = findVendorAiResearchWizard(process.cwd());
   if (fromCwd) {
     return fromCwd;
   }
 
   const configModuleDir = dirname(fileURLToPath(import.meta.url));
-  const fromPackage = findVendorAiResearchwizard(configModuleDir);
+  const fromPackage = findVendorAiResearchWizard(configModuleDir);
   if (fromPackage) {
     return fromPackage;
   }
@@ -202,7 +202,7 @@ export const loadResearchWizardRuntimeConfig = (env: NodeJS.ProcessEnv = process
     gptResearcherRoot,
     pythonExecutable: resolveTraskHeadlessPythonExecutable(gptResearcherRoot, env),
     headlessScriptPath: scriptRaw ? resolve(scriptRaw.trim()) : undefined,
-    timeoutMs: integerish.parse(readOptionalEnv("TRASK_RESEARCHWIZARD_TIMEOUT_MS", env) ?? "180000"),
+    timeoutMs: integerish.parse(readOptionalEnv("TRASK_RESEARCHWIZARD_TIMEOUT_MS", env) ?? "120000"),
   };
 };
 
