@@ -90,9 +90,9 @@ const areSettingsEqual = (left: PazaakUserSettings, right: PazaakUserSettings): 
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 
-type SettingsTab = "table" | "combat" | "interface" | "comms" | "accessibility";
+type SettingsTab = "cardworld" | "table" | "combat" | "interface" | "comms" | "accessibility";
 
-const SETTINGS_TABS: { id: SettingsTab; icon: string; label: string }[] = [
+const SETTINGS_TABS_BASE: { id: Exclude<SettingsTab, "cardworld">; icon: string; label: string }[] = [
   { id: "table",        icon: "🃏", label: "Table & Cards"  },
   { id: "combat",       icon: "⚔️", label: "Combat Rules"   },
   { id: "interface",    icon: "🖥️", label: "Interface"      },
@@ -100,18 +100,30 @@ const SETTINGS_TABS: { id: SettingsTab; icon: string; label: string }[] = [
   { id: "accessibility",icon: "♿", label: "Accessibility"  },
 ];
 
+/** Ownership proof + unlock actions (shown under Settings → CardWorld). */
+export interface SettingsCardWorldAccess {
+  isPazaakUnlocked: boolean;
+  ownershipProof: { filename: string; size: number; uploadedAt: string } | null;
+  acceptedOwnershipProofFilenames: readonly string[];
+  onUploadOwnershipProof: (file: File) => void;
+  onStartBlackjackGame: () => void;
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   currentSettings: PazaakUserSettings;
   onClose: () => void;
   onSave: (settings: PazaakUserSettings) => Promise<void>;
+  /** When set, adds a “CardWorld Access” tab (ownership upload + blackjack). */
+  cardWorldAccess?: SettingsCardWorldAccess | null;
 }
 
-export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: SettingsModalProps) {
+export function SettingsModal({ isOpen, currentSettings, onClose, onSave, cardWorldAccess = null }: SettingsModalProps) {
   const [settings, setSettings] = useState<PazaakUserSettings>(currentSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SettingsTab>("table");
+  const [cardWorldUploadMessage, setCardWorldUploadMessage] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const hasChanges = !areSettingsEqual(settings, currentSettings);
 
@@ -121,13 +133,19 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: Sett
     }
   }, [isSaving, onClose]);
 
+  const settingsTabs = cardWorldAccess
+    ? [{ id: "cardworld" as const, icon: "📜", label: "CardWorld Access" }, ...SETTINGS_TABS_BASE]
+    : SETTINGS_TABS_BASE;
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
     setSettings(currentSettings);
     setSaveError(null);
-  }, [currentSettings, isOpen]);
+    setCardWorldUploadMessage(null);
+    setActiveTab((tab) => (tab === "cardworld" && !cardWorldAccess ? "table" : tab));
+  }, [cardWorldAccess, currentSettings, isOpen]);
 
   // Escape to close + Ctrl+Enter to save
   useEffect(() => {
@@ -510,6 +528,73 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: Sett
     </div>
   );
 
+  const renderCardWorld = () => {
+    if (!cardWorldAccess) {
+      return null;
+    }
+    const cw = cardWorldAccess;
+    return (
+      <div className="settings-tab-pane">
+        <div className="settings-section">
+          <h3 className="settings-section-title">📜 CardWorld Access</h3>
+          {cw.isPazaakUnlocked ? (
+            <p className="settings-section-desc">
+              Pazaak unlocked{cw.ownershipProof ? ` via ${cw.ownershipProof.filename}` : ""}. You can queue, join lobbies, and challenge AI opponents.
+            </p>
+          ) : (
+            <p className="settings-section-desc">
+              Upload chitin.key to unlock Pazaak. Until then, local blackjack is available as the default card mode.
+            </p>
+          )}
+          <div className="settings-cardworld-actions" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
+            {!cw.isPazaakUnlocked ? (
+              <label className="pazaak-world-button pazaak-world-button--outline" style={{ cursor: "pointer" }}>
+                <span aria-hidden="true">+</span>
+                Upload Ownership Proof
+                <input
+                  type="file"
+                  accept={cw.acceptedOwnershipProofFilenames.join(",")}
+                  style={{ display: "none" }}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) {
+                      return;
+                    }
+                    try {
+                      cw.onUploadOwnershipProof(file);
+                      setCardWorldUploadMessage(`Accepted ${file.name}. Pazaak unlocked.`);
+                    } catch (error) {
+                      setCardWorldUploadMessage(error instanceof Error ? error.message : String(error));
+                    } finally {
+                      event.currentTarget.value = "";
+                    }
+                  }}
+                />
+              </label>
+            ) : null}
+            <button
+              type="button"
+              className="pazaak-world-button pazaak-world-button--galaxy"
+              onClick={() => {
+                soundManager.beep("success", 80);
+                cw.onStartBlackjackGame();
+                requestClose();
+              }}
+            >
+              <span aria-hidden="true">◎</span>
+              Play Blackjack Practice
+            </button>
+          </div>
+          {cardWorldUploadMessage ? (
+            <p className="pazaak-world-card__notice" style={{ marginTop: 10 }} role="status">
+              {cardWorldUploadMessage}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
@@ -542,7 +627,7 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: Sett
         {/* Body: nav sidebar + content pane */}
         <div className="settings-modal-body">
           <nav className="settings-nav" aria-label="Settings sections">
-            {SETTINGS_TABS.map((tab) => (
+            {settingsTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -557,6 +642,7 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave }: Sett
           </nav>
 
           <div className="settings-tab-content" role="tabpanel">
+            {activeTab === "cardworld"     && renderCardWorld()}
             {activeTab === "table"         && renderTableCards()}
             {activeTab === "combat"        && renderCombatRules()}
             {activeTab === "interface"     && renderInterface()}

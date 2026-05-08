@@ -541,6 +541,25 @@ function PazaakWorldApp() {
     }
   }, [activeSession?.accessToken]);
 
+  const handleUploadOwnershipProof = useCallback(
+    (file: File) => {
+      const accepted = cardWorldConfig.acceptedOwnershipProofFilenames.map((name) => name.toLowerCase());
+      if (!accepted.includes(file.name.toLowerCase()) || file.size <= 0) {
+        throw new Error(`Upload ${cardWorldConfig.acceptedOwnershipProofFilenames.join(" or ")} to unlock Pazaak.`);
+      }
+
+      const nextProof: OwnershipProofRecord = {
+        filename: file.name,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      saveOwnershipProof(nextProof);
+      setOwnershipProof(nextProof);
+    },
+    [cardWorldConfig.acceptedOwnershipProofFilenames],
+  );
+
   useEffect(() => {
     if (!activeSession?.accessToken) {
       setCornerWallet(null);
@@ -689,6 +708,18 @@ function PazaakWorldApp() {
           }
           setShowAuthDialog(true);
         }}
+        cardWorldAccess={{
+          isPazaakUnlocked,
+          ownershipProof,
+          acceptedOwnershipProofFilenames: cardWorldConfig.acceptedOwnershipProofFilenames,
+          onUploadOwnershipProof: handleUploadOwnershipProof,
+          onStartBlackjackGame: () => {
+            if (!activeSession) {
+              return;
+            }
+            setState({ stage: "blackjack_game", auth: activeSession });
+          },
+        }}
       />
       <AuthDialog
         isOpen={showAuthDialog}
@@ -711,12 +742,16 @@ function PazaakWorldApp() {
   ), [
     activeSession,
     authDialogMessage,
+    cardWorldConfig.acceptedOwnershipProofFilenames,
     cornerBusy,
     cornerWallet?.mmr,
     cornerWallet?.mmrRd,
     handleCornerLogout,
     handleCornerRefresh,
+    handleUploadOwnershipProof,
     isOnline,
+    isPazaakUnlocked,
+    ownershipProof,
     routePostAuth,
     showAuthDialog,
     state.stage,
@@ -964,23 +999,6 @@ function PazaakWorldApp() {
       <ModeSelectionScreen
         socketState={matchSocketState}
         isPazaakUnlocked={isPazaakUnlocked}
-        ownershipProof={ownershipProof}
-        acceptedOwnershipProofFilenames={cardWorldConfig.acceptedOwnershipProofFilenames}
-        onUploadOwnershipProof={(file) => {
-          const accepted = cardWorldConfig.acceptedOwnershipProofFilenames.map((name) => name.toLowerCase());
-          if (!accepted.includes(file.name.toLowerCase()) || file.size <= 0) {
-            throw new Error(`Upload ${cardWorldConfig.acceptedOwnershipProofFilenames.join(" or ")} to unlock Pazaak.`);
-          }
-
-          const nextProof: OwnershipProofRecord = {
-            filename: file.name,
-            size: file.size,
-            uploadedAt: new Date().toISOString(),
-          };
-
-          saveOwnershipProof(nextProof);
-          setOwnershipProof(nextProof);
-        }}
         onOpenLobbies={() => setState(isPazaakUnlocked ? { stage: "lobby", auth: state.auth } : { stage: "blackjack_game", auth: state.auth })}
         onQuickMatch={(preferredMaxPlayers) => setState(isPazaakUnlocked
           ? { stage: "matchmaking", auth: state.auth, preferredMaxPlayers }
@@ -993,7 +1011,6 @@ function PazaakWorldApp() {
               ...(opponentId ? { opponentId } : {}),
             }
           : { stage: "blackjack_game", auth: state.auth })}
-        onStartBlackjackGame={() => setState({ stage: "blackjack_game", auth: state.auth })}
         onOpenTrask={() => setState({ stage: "trask", auth: state.auth })}
         onOpenTournaments={() => setState({ stage: "tournament", auth: state.auth, tournamentId: null })}
         traskAvailable={traskAvailable}
@@ -1251,10 +1268,6 @@ function ModeSelectionScreen({
   onOpenLobbies,
   onQuickMatch,
   onStartLocalGame,
-  onStartBlackjackGame,
-  onUploadOwnershipProof,
-  acceptedOwnershipProofFilenames,
-  ownershipProof,
   isPazaakUnlocked,
   onOpenTrask,
   onOpenTournaments,
@@ -1265,17 +1278,12 @@ function ModeSelectionScreen({
   onOpenLobbies: () => void;
   onQuickMatch: (preferredMaxPlayers: number) => void;
   onStartLocalGame: (difficulty: AdvisorDifficulty, opponentId?: string) => void;
-  onStartBlackjackGame: () => void;
-  onUploadOwnershipProof: (file: File) => void;
-  acceptedOwnershipProofFilenames: readonly string[];
-  ownershipProof: OwnershipProofRecord | null;
   isPazaakUnlocked: boolean;
   onOpenTrask: () => void;
   onOpenTournaments: () => void;
   traskAvailable?: boolean;
   isOnline?: boolean;
 }) {
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [showRulebook, setShowRulebook] = useState(false);
   const [localDifficulty, setLocalDifficulty] = useState<AdvisorDifficulty>(() => {
     try {
@@ -1427,47 +1435,14 @@ function ModeSelectionScreen({
           <p>{MAIN_MENU_PRESET.heroTagline}</p>
         </section>
 
-        <section className="pazaak-world-card pazaak-world-card--ai" aria-live="polite">
-          <h2><span aria-hidden="true">{menuIcon("scroll")}</span>CardWorld Access</h2>
-          {isPazaakUnlocked ? (
-            <p>Pazaak unlocked{ownershipProof ? ` via ${ownershipProof.filename}` : ""}. You can queue, join lobbies, and challenge AI opponents.</p>
-          ) : (
-            <p>Upload chitin.key to unlock Pazaak. Until then, local blackjack is available as the default card mode.</p>
-          )}
-          <div className="pazaak-world-card__actions">
-            {!isPazaakUnlocked ? (
-              <label className="pazaak-world-button pazaak-world-button--outline" style={{ cursor: "pointer" }}>
-                <span aria-hidden="true">{menuIcon("plus")}</span>
-                Upload Ownership Proof
-                <input
-                  type="file"
-                  accept={acceptedOwnershipProofFilenames.join(",")}
-                  style={{ display: "none" }}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (!file) {
-                      return;
-                    }
-
-                    try {
-                      onUploadOwnershipProof(file);
-                      setUploadMessage(`Accepted ${file.name}. Pazaak unlocked.`);
-                    } catch (error) {
-                      setUploadMessage(error instanceof Error ? error.message : String(error));
-                    } finally {
-                      event.currentTarget.value = "";
-                    }
-                  }}
-                />
-              </label>
-            ) : null}
-            <button className="pazaak-world-button pazaak-world-button--galaxy" onClick={onStartBlackjackGame}>
-              <span aria-hidden="true">{menuIcon("target")}</span>
-              Play Blackjack Practice
-            </button>
-            {uploadMessage ? <p className="pazaak-world-card__notice">{uploadMessage}</p> : null}
-          </div>
-        </section>
+        {!isPazaakUnlocked && !isDiscordActivity() ? (
+          <p
+            className="pazaak-world-card__notice"
+            style={{ textAlign: "center", margin: "0 auto 1rem", maxWidth: "36rem" }}
+          >
+            Upload <code>chitin.key</code> or open blackjack practice from <strong>Settings</strong> (⚙) → CardWorld Access.
+          </p>
+        ) : null}
 
         <section className="pazaak-world-mode-grid">
           {aiCard ? (

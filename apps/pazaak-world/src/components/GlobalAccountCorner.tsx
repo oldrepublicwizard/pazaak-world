@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AdminPolicyPanel } from "./AdminPolicyPanel.tsx";
-import { SettingsModal } from "./SettingsModal.tsx";
+import { SettingsModal, type SettingsCardWorldAccess } from "./SettingsModal.tsx";
 import { ConnectionStatus } from "./ConnectionStatus.tsx";
 import type { PazaakUserSettings } from "../types.ts";
 import type { MatchSocketConnectionState } from "../api.ts";
@@ -48,6 +48,8 @@ interface GlobalAccountCornerProps {
   onSettingsSave?: (settings: PazaakUserSettings) => Promise<void>;
   /** When set (standalone / logged-in session), show Ops policy editor for admins. */
   accessToken?: string | null;
+  /** CardWorld ownership + blackjack (Settings modal first tab). */
+  cardWorldAccess?: SettingsCardWorldAccess | null;
 }
 
 export function GlobalAccountCorner({
@@ -66,6 +68,7 @@ export function GlobalAccountCorner({
   onSignIn,
   onSettingsSave,
   accessToken = null,
+  cardWorldAccess = null,
 }: GlobalAccountCornerProps) {
   const [identityMenuOpen, setIdentityMenuOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -372,6 +375,7 @@ export function GlobalAccountCorner({
         currentSettings={currentSettings}
         onClose={() => setSettingsModalOpen(false)}
         onSave={onSettingsSave || (async () => {})}
+        cardWorldAccess={cardWorldAccess}
       />
       {accessToken && !isGuestLikeAccessToken(accessToken) ? (
         <AdminPolicyPanel
