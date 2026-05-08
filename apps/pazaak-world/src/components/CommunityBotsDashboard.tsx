@@ -427,7 +427,7 @@ const DASHBOARD_RUNBOOKS: DashboardRunbook[] = [
     title: "Pages, Routes & OAuth",
     summary: "Deploy the static app at /community-bots with nested routes for PazaakWorld, Holocron, and HK WebUI.",
     steps: [
-      "Use the Deploy PazaakWorld workflow; it pins Vite BASE to /community-bots/ and creates a 404.html SPA fallback.",
+      "Use the Deploy PazaakWorld workflow; it pins Vite BASE to /community-bots/, copies dist/index.html to dist/404.html, and materializes dist/discord/index.html plus dist/pazaakworld/index.html so /discord/ and /pazaakworld/ return HTTP 200 (not only a 404-wrapped SPA shell).",
       "Register https://openkotor.github.io/community-bots/pazaakworld as the public Activity/browser route.",
       "Register provider callbacks at https://openkotor.github.io/community-bots/pazaakworld/api/auth/oauth/<provider>/callback unless a deployed API origin requires a provider-specific callback.",
       "Set the repository homepage to https://openkotor.github.io/community-bots/pazaakworld; invite hub lives at /community-bots/discord and operator tooling defaults to /community-bots.",
@@ -439,7 +439,7 @@ const DASHBOARD_RUNBOOKS: DashboardRunbook[] = [
     ],
     checks: [
       "/community-bots loads this operator console; /community-bots/discord is the public Discord bots landing.",
-      "/community-bots/pazaakworld shows PazaakWorld, including direct reloads through 404.html.",
+      "/community-bots/pazaakworld/ serves PazaakWorld with HTTP 200; other client-only paths still rely on 404.html as the SPA shell.",
       "OAuth callback URLs do not point at localhost in production env files.",
       "Repository variable PAZAAK_API_BASES contains deployed API origins when using remote APIs.",
     ],
@@ -511,7 +511,7 @@ const DASHBOARD_CHECKLIST: DashboardChecklistItem[] = [
 const COMMON_PROBLEMS = [
   { symptom: "Dashboard shows API offline", cause: "Selected API target is wrong, the bot API is not running, or CORS blocks the browser origin.", fix: "Run corepack pnpm dev:pazaak, set the API target to http://localhost:4001 for local checks, then run Ping and Health probes." },
   { symptom: "OAuth buttons are unavailable", cause: "Provider client id/secret is missing, or the API process was not restarted after .env edits.", fix: "Run corepack pnpm check:pazaak-oauth, fill provider vars, restart the API, then probe /api/auth/oauth/providers." },
-  { symptom: "Direct /community-bots/pazaakworld reload 404s", cause: "Static host is missing SPA fallback.", fix: "Ensure the Pages workflow copies dist/index.html to dist/404.html and deploys with BASE=/community-bots/." },
+  { symptom: "curl or bots show HTTP 404 for /community-bots/discord or /pazaakworld (no trailing slash)", cause: "GitHub Pages had no physical index.html under those paths.", fix: "Deploy workflow must copy dist/index.html into dist/discord/index.html and dist/pazaakworld/index.html; trailing-slash URLs should return 200, bare paths may 301 to the slash form." },
   { symptom: "Worker queues work but matches fail", cause: "Expected fallback limitation: the Worker does not run authoritative match actions.", fix: "Put the embedded API first in VITE_API_BASES for live multiplayer, and keep Worker as fallback for account/queue/lobby continuity." },
   { symptom: "Trask answers stale content", cause: "Queued source refresh jobs were not drained or source credentials are missing.", fix: "Run corepack pnpm dev:ingest -- drain-queue, then show-indexed to confirm refreshed source counts." },
 ];
