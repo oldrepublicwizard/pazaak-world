@@ -17,20 +17,26 @@ const options: esbuild.BuildOptions = {
   bundle: true,
   platform: "neutral",
   target: "es2020",
-  format: "iife",
+  // Nakama's loader parses the program AST and requires a top-level `function InitModule` (not inside an IIFE).
+  format: "cjs",
   alias: {
     "@openkotor/pazaak-tournament": resolve(repoRoot, "packages/pazaak-tournament/src/nakama-entry.ts"),
     "node:crypto": resolve(dirname(fileURLToPath(import.meta.url)), "node-crypto-stub.ts"),
   },
-  globalName: "pazaakWorldRuntime",
-  sourcemap: true,
+  // Nakama loads the single JS file only; an external .map next to it causes startup failure.
+  sourcemap: false,
   logLevel: "info",
   legalComments: "none",
   banner: {
-    js: "var exports = {}; var module = { exports: exports };",
-  },
-  footer: {
-    js: "module.exports = pazaakWorldRuntime;",
+    // Node/CommonJS provides `module`/`exports`; Nakama's VM does not — define only when missing (no shadowing).
+    js: [
+      "if (typeof module === \"undefined\") {",
+      "  var module = { exports: {} };",
+      "}",
+      "if (typeof exports === \"undefined\") {",
+      "  var exports = module.exports;",
+      "}",
+    ].join("\n"),
   },
 };
 

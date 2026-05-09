@@ -46,6 +46,16 @@ export function isGuestLikeAccessToken(token: string | null | undefined): boolea
   return token.startsWith("local-guest-token:") || token.startsWith("dev-user-");
 }
 
+/** Stable alphanumeric id passed to `authenticateDevice` for local `guest-*` profiles. */
+export function nakamaGuestDeviceId(stableAccountId: string): string {
+  return stableAccountId.replace(/^guest-/iu, "").replace(/[^a-zA-Z0-9]/gu, "");
+}
+
+/** Display username for Nakama (letters/digits/underscore); keep distinct from other users' bare-hex names. */
+export function nakamaGuestUsername(stableAccountId: string): string {
+  return stableAccountId.replace(/[^a-zA-Z0-9_]/gu, "_").slice(0, 32);
+}
+
 export function tryDecodeNakamaCredential(accessToken: string): Session | null {
   if (!accessToken.startsWith(CRED_PREFIX)) return null;
   try {
@@ -59,6 +69,21 @@ export function tryDecodeNakamaCredential(accessToken: string): Session | null {
   return null;
 }
 
+/** nakama-js surfaces failed HTTP as `Response`; normalize so callers never stringify to "[object Response]". */
+export async function nakamaAsError(err: unknown, label: string): Promise<Error> {
+  if (err instanceof Error) return err;
+  if (err instanceof Response) {
+    const body = await err.text().catch(() => "");
+    const trimmed = body.trim();
+    return new Error(
+      trimmed
+        ? `${label}: HTTP ${err.status} ${trimmed.slice(0, 400)}`
+        : `${label}: HTTP ${err.status} ${err.statusText || ""}`.trim(),
+    );
+  }
+  return new Error(`${label}: ${String(err)}`);
+}
+
 export async function ensureNakamaSession(
   accessToken: string,
   username: string,
@@ -67,16 +92,26 @@ export async function ensureNakamaSession(
   const decoded = tryDecodeNakamaCredential(accessToken);
   if (decoded) {
     const now = Math.floor(Date.now() / 1000);
-    if (!decoded.isexpired(now)) return decoded;
-    return getNakamaClient().sessionRefresh(decoded);
+    try {
+      if (!decoded.isexpired(now)) return decoded;
+      return await getNakamaClient().sessionRefresh(decoded);
+    } catch (err) {
+      throw await nakamaAsError(err, "Nakama sessionRefresh");
+    }
   }
 
   const client = getNakamaClient();
   const guestLike = isGuestLikeAccessToken(accessToken);
-  if (guestLike) {
-    return client.authenticateDevice(stableAccountId, true, username);
+  /** Nakama device IDs should be alphanumeric; local `guest-<uuid>` ids include hyphens and can break account creation. */
+  const deviceId = guestLike ? nakamaGuestDeviceId(stableAccountId) : stableAccountId;
+  try {
+    if (guestLike) {
+      return await client.authenticateDevice(deviceId, true, username);
+    }
+    return await client.authenticateCustom(`openkotor:${stableAccountId}`, true, username);
+  } catch (err) {
+    throw await nakamaAsError(err, guestLike ? "Nakama authenticateDevice" : "Nakama authenticateCustom");
   }
-  return client.authenticateCustom(`openkotor:${stableAccountId}`, true, username);
 }
 
 export interface ActivitySessionLike {
@@ -103,11 +138,19 @@ export async function sessionFromPazaakAccessToken(accessToken: string): Promise
   }
   const now = Math.floor(Date.now() / 1000);
   if (!decoded.isexpired(now)) return decoded;
-  return getNakamaClient().sessionRefresh(decoded);
+  try {
+    return await getNakamaClient().sessionRefresh(decoded);
+  } catch (err) {
+    throw await nakamaAsError(err, "Nakama sessionRefresh");
+  }
 }
 
 export async function nakamaRpc<T extends object>(accessToken: string, rpcId: string, payload: object): Promise<T> {
-  const session = await sessionFromPazaakAccessToken(accessToken);
-  const res = await getNakamaClient().rpc(session, rpcId, payload);
-  return (res.payload ?? {}) as T;
+  try {
+    const session = await sessionFromPazaakAccessToken(accessToken);
+    const res = await getNakamaClient().rpc(session, rpcId, payload);
+    return (res.payload ?? {}) as T;
+  } catch (err) {
+    throw await nakamaAsError(err, `Nakama RPC ${rpcId}`);
+  }
 }

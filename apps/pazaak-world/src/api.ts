@@ -35,6 +35,7 @@ import {
   bootstrapNakamaActivitySession,
   getNakamaClient,
   isNakamaBackend,
+  nakamaAsError,
   nakamaRpc,
   sessionFromPazaakAccessToken,
   tryDecodeNakamaCredential,
@@ -588,14 +589,19 @@ export async function enqueueMatchmaking(
     const stringProps: Record<string, string> = {};
     if (preferredRegions?.length) stringProps.region = preferredRegions[0]!;
 
-    await socket.connect(session, false);
+    try {
+      await socket.connect(session, false);
+    } catch (err) {
+      socket.disconnect(false);
+      throw await nakamaAsError(err, "Nakama socket.connect (matchmaker)");
+    }
     let ticket: string;
     try {
       const ticketRes = await socket.addMatchmaker("*", partySize, partySize, stringProps);
       ticket = ticketRes.ticket;
     } catch (err) {
       socket.disconnect(false);
-      throw err;
+      throw await nakamaAsError(err, "Nakama addMatchmaker");
     }
 
     const queue: MatchmakingQueueRecord = {

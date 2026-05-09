@@ -208,7 +208,7 @@ function requireUser(ctx: nkruntime.Context): string {
 
 function displayNameFor(nk: nkruntime.Nakama, ctx: nkruntime.Context, userId: string): string {
   try {
-    const account = nk.accountGetId(ctx, userId);
+    const account = nk.accountGetId(userId);
     return account.user.displayName || account.user.username || `Player ${userId.slice(0, 6)}`;
   } catch {
     return `Player ${userId.slice(0, 6)}`;
@@ -222,7 +222,7 @@ function readStorage<T extends JsonObject>(
   key: string,
   userId: string,
 ): T | null {
-  const [obj] = nk.storageRead(ctx, [{ collection, key, userId }]);
+  const [obj] = nk.storageRead([{ collection, key, userId }]);
   return obj ? obj.value as T : null;
 }
 
@@ -234,7 +234,7 @@ function writeStorage(
   userId: string,
   value: JsonObject,
 ): void {
-  nk.storageWrite(ctx, [{ collection, key, userId, value, permissionRead: 1, permissionWrite: 0 }]);
+  nk.storageWrite([{ collection, key, userId, value, permissionRead: 1, permissionWrite: 0 }]);
 }
 
 function deleteStorage(
@@ -244,7 +244,7 @@ function deleteStorage(
   key: string,
   userId: string,
 ): void {
-  nk.storageDelete(ctx, [{ collection, key, userId }]);
+  nk.storageDelete([{ collection, key, userId }]);
 }
 
 function defaultSettings(): RuntimeSettings {
@@ -517,7 +517,7 @@ function createHostedMatch(
     setsToWin: String(input.setsToWin ?? 3),
     wager: String(input.wager ?? 0),
   };
-  const nakamaMatchId = nk.matchCreate(ctx, MATCH_HANDLER, params);
+  const nakamaMatchId = nk.matchCreate(MATCH_HANDLER, params);
   const { snapshot } = createInitialMatch(nk, ctx, params);
   saveMatchIndex(nk, ctx, {
     matchId: logicalMatchId,
@@ -556,7 +556,7 @@ function matchmakerMatched(
     setsToWin: "3",
     wager: "0",
   };
-  const nakamaMatchId = nk.matchCreate(ctx, MATCH_HANDLER, params);
+  const nakamaMatchId = nk.matchCreate(MATCH_HANDLER, params);
   saveMatchIndex(nk, ctx, {
     matchId: logicalMatchId,
     nakamaMatchId,
@@ -603,8 +603,8 @@ function settleIfNeeded(
     lastMatchAt: at,
   });
 
-  nk.leaderboardRecordWrite(ctx, LEADERBOARD_ID, nextWinner.userId, nextWinner.displayName, nextWinner.mmr, Math.round(nextWinner.rd), { gamesPlayed: nextWinner.gamesPlayed }, "set");
-  nk.leaderboardRecordWrite(ctx, LEADERBOARD_ID, nextLoser.userId, nextLoser.displayName, nextLoser.mmr, Math.round(nextLoser.rd), { gamesPlayed: nextLoser.gamesPlayed }, "set");
+  nk.leaderboardRecordWrite(LEADERBOARD_ID, nextWinner.userId, nextWinner.displayName, nextWinner.mmr, Math.round(nextWinner.rd), { gamesPlayed: nextWinner.gamesPlayed }, "set");
+  nk.leaderboardRecordWrite(LEADERBOARD_ID, nextLoser.userId, nextLoser.displayName, nextLoser.mmr, Math.round(nextLoser.rd), { gamesPlayed: nextLoser.gamesPlayed }, "set");
 
   appendHistory(nk, ctx, state.snapshot.winnerId, {
     matchId: state.matchId,
@@ -636,128 +636,187 @@ function broadcastSnapshot(dispatcher: nkruntime.MatchDispatcher, snapshot: Seri
   dispatcher.broadcastMessage(Opcode.Snapshot, json({ type: "match_update", data: snapshot }), presences ?? null);
 }
 
-const matchHandler: nkruntime.MatchHandler<MatchState> = {
-  matchInit(ctx, logger, nk, params) {
-    const { coordinator, snapshot } = createInitialMatch(nk, ctx, params);
-    logger.info("Pazaak match %s initialized", snapshot.id);
-    return {
-      state: {
-        matchId: snapshot.id,
-        coordinator,
-        snapshot,
-        presences: {},
-        idempotency: {},
-        settled: snapshot.settled,
-      },
-      tickRate: 1,
-      label: json({ game: "pazaak", matchId: snapshot.id }),
-    };
-  },
-  matchJoinAttempt(_ctx, _logger, _nk, _dispatcher, _tick, state, presence) {
-    const allowed = state.snapshot.players.some((player) => player.userId === presence.userId);
-    return allowed
-      ? { state, accept: true }
-      : { state, accept: false, rejectMessage: "Only match participants can join this match." };
-  },
-  matchJoin(_ctx, _logger, _nk, dispatcher, _tick, state, presences) {
-    for (const presence of presences) state.presences[presence.userId] = presence;
-    broadcastSnapshot(dispatcher, state.snapshot, presences);
-    return { state };
-  },
-  matchLeave(_ctx, _logger, _nk, _dispatcher, _tick, state, presences) {
-    for (const presence of presences) {
-      delete state.presences[presence.userId];
-      const updated = state.coordinator.markDisconnected(presence.userId);
-      if (updated) state.snapshot = serializeMatch(updated);
-    }
-    return { state };
-  },
-  matchLoop(ctx, logger, nk, dispatcher, _tick, state, messages) {
-    let changed = false;
-    const timerUpdates = [
-      ...state.coordinator.tickTurnTimers(),
-      ...state.coordinator.tickDisconnectForfeits(),
-    ];
-    if (timerUpdates.length > 0) {
-      state.snapshot = serializeMatch(timerUpdates.at(-1)!);
-      changed = true;
+// Nakama's JS loader resolves match hooks by top-level function names (no inlined object methods).
+function matchInit(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, params: Record<string, string>) {
+  const { coordinator, snapshot } = createInitialMatch(nk, ctx, params);
+  logger.info("Pazaak match %s initialized", snapshot.id);
+  return {
+    state: {
+      matchId: snapshot.id,
+      coordinator,
+      snapshot,
+      presences: {},
+      idempotency: {},
+      settled: snapshot.settled,
+    },
+    tickRate: 1,
+    label: json({ game: "pazaak", matchId: snapshot.id }),
+  };
+}
+
+function matchJoinAttempt(
+  _ctx: nkruntime.Context,
+  _logger: nkruntime.Logger,
+  _nk: nkruntime.Nakama,
+  _dispatcher: nkruntime.MatchDispatcher,
+  _tick: number,
+  state: MatchState,
+  presence: nkruntime.Presence,
+): { state: MatchState; accept: boolean; rejectMessage?: string } {
+  const allowed = state.snapshot.players.some((player) => player.userId === presence.userId);
+  return allowed
+    ? { state, accept: true }
+    : { state, accept: false, rejectMessage: "Only match participants can join this match." };
+}
+
+function matchJoin(
+  _ctx: nkruntime.Context,
+  _logger: nkruntime.Logger,
+  _nk: nkruntime.Nakama,
+  dispatcher: nkruntime.MatchDispatcher,
+  _tick: number,
+  state: MatchState,
+  presences: nkruntime.Presence[],
+): { state: MatchState } {
+  for (const presence of presences) state.presences[presence.userId] = presence;
+  broadcastSnapshot(dispatcher, state.snapshot, presences);
+  return { state };
+}
+
+function matchLeave(
+  _ctx: nkruntime.Context,
+  _logger: nkruntime.Logger,
+  _nk: nkruntime.Nakama,
+  _dispatcher: nkruntime.MatchDispatcher,
+  _tick: number,
+  state: MatchState,
+  presences: nkruntime.Presence[],
+): { state: MatchState } {
+  for (const presence of presences) {
+    delete state.presences[presence.userId];
+    const updated = state.coordinator.markDisconnected(presence.userId);
+    if (updated) state.snapshot = serializeMatch(updated);
+  }
+  return { state };
+}
+
+function matchLoop(
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  dispatcher: nkruntime.MatchDispatcher,
+  _tick: number,
+  state: MatchState,
+  messages: nkruntime.MatchMessage[],
+): { state: MatchState } {
+  let changed = false;
+  const timerUpdates = [...state.coordinator.tickTurnTimers(), ...state.coordinator.tickDisconnectForfeits()];
+  if (timerUpdates.length > 0) {
+    state.snapshot = serializeMatch(timerUpdates.at(-1)!);
+    changed = true;
+  }
+
+  for (const message of messages) {
+    if (message.opCode === Opcode.Chat) {
+      dispatcher.broadcastMessage(Opcode.Chat, textData(message.data), null, message.sender);
+      continue;
     }
 
-    for (const message of messages) {
-      if (message.opCode === Opcode.Chat) {
-        dispatcher.broadcastMessage(Opcode.Chat, textData(message.data), null, message.sender);
+    if (message.opCode !== Opcode.Command) continue;
+    try {
+      const payload = parsePayload(textData(message.data));
+      const clientMoveId = typeof payload.clientMoveId === "string" ? payload.clientMoveId : "";
+      if (clientMoveId && state.idempotency[clientMoveId]) {
+        broadcastSnapshot(dispatcher, state.idempotency[clientMoveId], [message.sender]);
         continue;
       }
 
-      if (message.opCode !== Opcode.Command) continue;
-      try {
-        const payload = parsePayload(textData(message.data));
-        const clientMoveId = typeof payload.clientMoveId === "string" ? payload.clientMoveId : "";
-        if (clientMoveId && state.idempotency[clientMoveId]) {
-          broadcastSnapshot(dispatcher, state.idempotency[clientMoveId], [message.sender]);
-          continue;
-        }
-
-        const kind = String(payload.type ?? "");
-        let updated: PazaakMatch;
-        switch (kind) {
-          case "draw":
-            updated = state.coordinator.draw(state.matchId, message.sender.userId);
-            break;
-          case "stand":
-            updated = state.coordinator.stand(state.matchId, message.sender.userId);
-            break;
-          case "end_turn":
-            updated = state.coordinator.endTurn(state.matchId, message.sender.userId);
-            break;
-          case "forfeit":
-            updated = state.coordinator.forfeit(state.matchId, message.sender.userId);
-            break;
-          case "play_side":
-            updated = state.coordinator.playSideCard(
-              state.matchId,
-              message.sender.userId,
-              String(payload.cardId ?? ""),
-              Number(payload.appliedValue ?? 0),
-            );
-            break;
-          default:
-            throw new Error(`Unknown Pazaak command: ${kind}`);
-        }
-
-        state.snapshot = serializeMatch(updated);
-        if (clientMoveId) state.idempotency[clientMoveId] = state.snapshot;
-        changed = true;
-      } catch (err) {
-        logger.warn("Rejected Pazaak command from %s: %s", message.sender.userId, err instanceof Error ? err.message : String(err));
-        dispatcher.broadcastMessage(Opcode.Error, json({ error: err instanceof Error ? err.message : String(err) }), [message.sender]);
+      const kind = String(payload.type ?? "");
+      let updated: PazaakMatch;
+      switch (kind) {
+        case "draw":
+          updated = state.coordinator.draw(state.matchId, message.sender.userId);
+          break;
+        case "stand":
+          updated = state.coordinator.stand(state.matchId, message.sender.userId);
+          break;
+        case "end_turn":
+          updated = state.coordinator.endTurn(state.matchId, message.sender.userId);
+          break;
+        case "forfeit":
+          updated = state.coordinator.forfeit(state.matchId, message.sender.userId);
+          break;
+        case "play_side":
+          updated = state.coordinator.playSideCard(
+            state.matchId,
+            message.sender.userId,
+            String(payload.cardId ?? ""),
+            Number(payload.appliedValue ?? 0),
+          );
+          break;
+        default:
+          throw new Error(`Unknown Pazaak command: ${kind}`);
       }
-    }
 
-    if (changed) {
-      saveSnapshot(nk, ctx, state.snapshot);
-      settleIfNeeded(nk, ctx, state);
-      broadcastSnapshot(dispatcher, state.snapshot);
+      state.snapshot = serializeMatch(updated);
+      if (clientMoveId) state.idempotency[clientMoveId] = state.snapshot;
+      changed = true;
+    } catch (err) {
+      logger.warn("Rejected Pazaak command from %s: %s", message.sender.userId, err instanceof Error ? err.message : String(err));
+      dispatcher.broadcastMessage(Opcode.Error, json({ error: err instanceof Error ? err.message : String(err) }), [message.sender]);
     }
+  }
 
-    return { state };
-  },
-  matchTerminate(ctx, _logger, nk, _dispatcher, _tick, state) {
+  if (changed) {
     saveSnapshot(nk, ctx, state.snapshot);
     settleIfNeeded(nk, ctx, state);
-    return { state };
-  },
-  matchSignal(_ctx, _logger, _nk, dispatcher, _tick, state, data) {
-    try {
-      const relay = parsePayload(data).chatRelay as Record<string, unknown> | undefined;
-      if (relay && typeof relay === "object") {
-        dispatcher.broadcastMessage(Opcode.Chat, json(relay), null);
-      }
-    } catch {
-      // Ignore malformed signals.
+    broadcastSnapshot(dispatcher, state.snapshot);
+  }
+
+  return { state };
+}
+
+function matchTerminate(
+  ctx: nkruntime.Context,
+  _logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  _dispatcher: nkruntime.MatchDispatcher,
+  _tick: number,
+  state: MatchState,
+): { state: MatchState } {
+  saveSnapshot(nk, ctx, state.snapshot);
+  settleIfNeeded(nk, ctx, state);
+  return { state };
+}
+
+function matchSignal(
+  _ctx: nkruntime.Context,
+  _logger: nkruntime.Logger,
+  _nk: nkruntime.Nakama,
+  dispatcher: nkruntime.MatchDispatcher,
+  _tick: number,
+  state: MatchState,
+  data: string,
+): { state: MatchState; data: string } {
+  try {
+    const relay = parsePayload(data).chatRelay as Record<string, unknown> | undefined;
+    if (relay && typeof relay === "object") {
+      dispatcher.broadcastMessage(Opcode.Chat, json(relay), null);
     }
-    return { state, data };
-  },
+  } catch {
+    // Ignore malformed signals.
+  }
+  return { state, data };
+}
+
+const matchHandler: nkruntime.MatchHandler<MatchState> = {
+  matchInit,
+  matchJoinAttempt,
+  matchJoin,
+  matchLeave,
+  matchLoop,
+  matchTerminate,
+  matchSignal,
 };
 
 function rpcConfigPublic(_ctx: nkruntime.Context, _logger: nkruntime.Logger, _nk: nkruntime.Nakama, _payload: string): string {
@@ -833,7 +892,7 @@ function rpcSideboardDelete(ctx: nkruntime.Context, _logger: nkruntime.Logger, n
 }
 
 function rpcLeaderboard(ctx: nkruntime.Context, _logger: nkruntime.Logger, nk: nkruntime.Nakama): string {
-  const records = nk.leaderboardRecordsList(ctx, LEADERBOARD_ID, null, 50).records ?? [];
+  const records = nk.leaderboardRecordsList(LEADERBOARD_ID, [], 50, "", 0).records ?? [];
   return json({
     leaders: records.map((record) => ({
       userId: record.ownerId,
@@ -1230,7 +1289,7 @@ function rpcChatSend(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkrun
   const index = matchId ? getMatchIndex(nk, ctx, matchId) : null;
   if (index?.nakamaMatchId) {
     try {
-      nk.matchSignal(ctx, index.nakamaMatchId, json({ chatRelay: msg }));
+      nk.matchSignal(index.nakamaMatchId, json({ chatRelay: msg }));
     } catch (err) {
       logger.warn("Chat relay matchSignal failed: %s", err instanceof Error ? err.message : String(err));
     }
@@ -1284,7 +1343,7 @@ function InitModule(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkrunt
   initializer.registerRpc("pazaak.chat_history", rpcChatHistory);
 
   try {
-    nk.leaderboardCreate(ctx, LEADERBOARD_ID, true, "desc", "set", undefined, { description: "Pazaak ranked MMR" });
+    nk.leaderboardCreate(LEADERBOARD_ID, true, "desc", "set", "", { description: "Pazaak ranked MMR" }, false);
   } catch {
     // Already exists on warm restarts.
   }
@@ -1292,4 +1351,4 @@ function InitModule(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkrunt
   logger.info("PazaakWorld Nakama runtime initialized.");
 }
 
-(globalThis as typeof globalThis & { InitModule: typeof InitModule }).InitModule = InitModule;
+export { InitModule };

@@ -79,7 +79,7 @@ import { ConnectionStatus } from "./components/ConnectionStatus.tsx";
 import { subscribeToActivityRelay, type ActivityRelayConnectionState, type ActivityRelayMember } from "./activityRelay.ts";
 import type { CardWorldConfig } from "@openkotor/platform";
 import { discordHubRoute, pazaakWorldRoute } from "./deployRoutes.ts";
-import { isGuestLikeAccessToken } from "./nakamaClient.ts";
+import { isGuestLikeAccessToken, nakamaGuestUsername } from "./nakamaClient.ts";
 
 const STANDALONE_AUTH_TOKEN_KEY = "pazaak-world-standalone-auth-token-v1";
 const USER_SETTINGS_STORAGE_KEY = "pazaak-user-settings-v1";
@@ -222,11 +222,14 @@ const getOrCreateLocalGuestId = (): string => {
       return existing;
     }
 
-    const created = `guest-${Math.random().toString(36).slice(2, 10)}`;
+    const suffix =
+      globalThis.crypto?.randomUUID?.() ??
+      `${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36)}`;
+    const created = `guest-${suffix}`;
     window.localStorage.setItem(LOCAL_GUEST_ID_KEY, created);
     return created;
   } catch {
-    return `guest-${Math.random().toString(36).slice(2, 10)}`;
+    return `guest-${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36)}`;
   }
 };
 
@@ -388,11 +391,13 @@ type ActivitySession = {
   channelId?: string;
 };
 
+const guestUsernameForId = (guestId: string): string => nakamaGuestUsername(guestId);
+
 const createLocalGuestSession = (): ActivitySession => {
   const guestId = getOrCreateLocalGuestId();
   return {
     userId: guestId,
-    username: "Guest Pilot",
+    username: guestUsernameForId(guestId),
     accessToken: `local-guest-token:${guestId}`,
   };
 };
@@ -476,6 +481,8 @@ function getSessionFromAppState(state: AppState): ActivitySession | null {
 
 function PazaakWorldApp() {
   const [state, setState] = useState<AppState>({ stage: "loading" });
+  /** Bumped on each standalone auth bootstrap effect run so Strict Mode’s stale async pass cannot overwrite state (avoids spurious auth_error / [object Response]). */
+  const standaloneAuthBootSeq = useRef(0);
   const [matchSocketState, setMatchSocketState] = useState<MatchSocketConnectionState>("disconnected");
   const [activityRelayState, setActivityRelayState] = useState<ActivityRelayConnectionState>("disabled");
   const [activityRelayMembers, setActivityRelayMembers] = useState<ActivityRelayMember[]>([]);
@@ -826,6 +833,10 @@ function PazaakWorldApp() {
 
   // On mount: run Discord SDK auth, then poll for an active match.
   useEffect(() => {
+    standaloneAuthBootSeq.current += 1;
+    const bootSeq = standaloneAuthBootSeq.current;
+    const stillCurrent = (): boolean => standaloneAuthBootSeq.current === bootSeq;
+
     (async () => {
       try {
         if (!isDiscordActivity()) {
@@ -845,6 +856,7 @@ function PazaakWorldApp() {
           if (oauthError) {
             clearOauthQuery();
             const oauthGuest = await maybeBootstrapNakama(createLocalGuestSession());
+            if (!stillCurrent()) return;
             setStoredStandaloneAuthToken(oauthGuest.accessToken);
             setAuthDialogMessage(decodeURIComponent(oauthError));
             setShowAuthDialog(true);
@@ -854,10 +866,11 @@ function PazaakWorldApp() {
 
           const accessToken = oauthToken || getStoredStandaloneAuthToken();
           const requestedMatchId = params.get("matchId")?.trim() || "";
-          
+
           if (accessToken) {
             try {
               const sessionInfo = await fetchAuthSession(accessToken);
+              if (!stillCurrent()) return;
               const username = sessionInfo.account.displayName;
               const userId = sessionInfo.account.legacyGameUserId ?? sessionInfo.account.accountId;
               let authSession: ActivitySession = {
@@ -866,16 +879,20 @@ function PazaakWorldApp() {
                 accessToken,
               };
               authSession = await maybeBootstrapNakama(authSession);
+              if (!stillCurrent()) return;
 
               setStoredStandaloneAuthToken(authSession.accessToken);
               const requestedMatch = requestedMatchId
                 ? await fetchMatch(requestedMatchId, authSession.accessToken)
                 : null;
+              if (!stillCurrent()) return;
               const match = requestedMatch ?? await fetchMyMatch(authSession.accessToken);
+              if (!stillCurrent()) return;
               routePostAuth(authSession, match);
               clearOauthQuery();
               return;
             } catch {
+              if (!stillCurrent()) return;
               clearStoredStandaloneAuthToken();
               clearOauthQuery();
             }
@@ -885,7 +902,9 @@ function PazaakWorldApp() {
             try {
               // Try to fetch the match as a guest/spectator
               const spectateGuest = await maybeBootstrapNakama(createLocalGuestSession());
+              if (!stillCurrent()) return;
               const requestedMatch = await fetchMatch(requestedMatchId, spectateGuest.accessToken);
+              if (!stillCurrent()) return;
               if (requestedMatch) {
                 setState({ stage: "game", auth: spectateGuest, match: requestedMatch });
                 return;
@@ -896,12 +915,14 @@ function PazaakWorldApp() {
           }
 
           const bootGuest = await maybeBootstrapNakama(createLocalGuestSession());
+          if (!stillCurrent()) return;
           setStoredStandaloneAuthToken(bootGuest.accessToken);
           routePostAuth(bootGuest, null);
           return;
         }
 
         const discordRaw = await initDiscordAuth();
+        if (!stillCurrent()) return;
         const session: ActivitySession = await maybeBootstrapNakama({
           userId: discordRaw.userId,
           username: discordRaw.username,
@@ -910,7 +931,9 @@ function PazaakWorldApp() {
           ...(discordRaw.guildId ? { guildId: discordRaw.guildId } : {}),
           ...(discordRaw.channelId ? { channelId: discordRaw.channelId } : {}),
         });
+        if (!stillCurrent()) return;
         const match = await fetchMyMatch(session.accessToken);
+        if (!stillCurrent()) return;
 
         if (match) {
           setState({ stage: "game", auth: session, match });
@@ -918,9 +941,19 @@ function PazaakWorldApp() {
           routePostAuth(session, null);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        if (!stillCurrent()) return;
+        let message: string;
+        if (err instanceof Error) {
+          message = err.message;
+        } else if (err instanceof Response) {
+          const body = await err.text().catch(() => "");
+          message = body.trim() ? `HTTP ${err.status}: ${body.slice(0, 200)}` : `HTTP ${err.status}`;
+        } else {
+          message = String(err);
+        }
         if (!isDiscordActivity() && message.includes("not running inside Discord Activity")) {
           const sdkGuest = await maybeBootstrapNakama(createLocalGuestSession());
+          if (!stillCurrent()) return;
           setStoredStandaloneAuthToken(sdkGuest.accessToken);
           routePostAuth(sdkGuest, null);
           return;
@@ -2165,7 +2198,7 @@ function AuthDialog({
       const guestId = getOrCreateLocalGuestId();
       await onAuthenticated({
         userId: guestId,
-        username: "Guest Pilot",
+        username: guestUsernameForId(guestId),
         accessToken: `local-guest-token:${guestId}`,
       });
       onClose();

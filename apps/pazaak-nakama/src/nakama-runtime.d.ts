@@ -31,23 +31,23 @@ declare namespace nkruntime {
     registerAfterAuthenticateCustom?(fn: unknown): void;
   }
 
+  /** Nakama 3.x JS/TS runtime: context is implicit; do not pass `ctx` as the first argument. */
   interface Nakama {
-    accountGetId(ctx: Context, userId: string): Account;
-    accountUpdateId(ctx: Context, userId: string, username?: string, displayName?: string): void;
-    storageRead(ctx: Context, reads: StorageReadRequest[]): StorageObject[];
-    storageWrite(ctx: Context, writes: StorageWriteRequest[]): void;
-    storageDelete(ctx: Context, deletes: StorageDeleteRequest[]): void;
+    accountGetId(userId: string): Account;
+    accountUpdateId(userId: string, username?: string, displayName?: string): void;
+    storageRead(reads: StorageReadRequest[]): StorageObject[];
+    storageWrite(writes: StorageWriteRequest[]): void;
+    storageDelete(deletes: StorageDeleteRequest[]): void;
     leaderboardCreate(
-      ctx: Context,
       id: string,
       authoritative: boolean,
       sortOrder: "asc" | "desc",
       operator: "best" | "set" | "incr" | "decr",
-      resetSchedule?: string,
+      resetSchedule: string,
       metadata?: Record<string, unknown>,
+      enableRanks?: boolean,
     ): void;
     leaderboardRecordWrite(
-      ctx: Context,
       id: string,
       ownerId: string,
       username: string,
@@ -57,16 +57,15 @@ declare namespace nkruntime {
       overrideOperator?: "best" | "set" | "incr" | "decr",
     ): LeaderboardRecord;
     leaderboardRecordsList(
-      ctx: Context,
       id: string,
-      ownerIds?: string[] | null,
-      limit?: number,
+      ownerIds: string[],
+      limit: number,
       cursor?: string | null,
       expiry?: number,
     ): LeaderboardRecords;
-    matchCreate(ctx: Context, module: string, params?: Record<string, string>): string;
+    matchCreate(module: string, params?: Record<string, string>): string;
     /** Relay an out-of-band message into an authoritative match (invokes matchSignal on the handler). */
-    matchSignal(ctx: Context, matchId: string, data: string): void;
+    matchSignal(matchId: string, data: string): void;
   }
 
   interface Account {

@@ -1,4 +1,5 @@
-name: pazaakworld-nakama
+# Nakama requires name length 1–16 (see server/config.go).
+name: pazaakworld
 logger:
   level: DEBUG
 database:
