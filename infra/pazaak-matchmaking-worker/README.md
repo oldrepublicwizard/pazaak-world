@@ -133,6 +133,13 @@ The deploy workflow runs `wrangler secret put` after each deploy (empty secrets 
 4. **Verify**: After deploy, open `https://<worker>/api/auth/oauth/providers`
    and confirm each intended provider has `"enabled": true`.
 
+5. **Google `invalid_client` after setting `GOOGLE_CLIENT_ID`**: Older
+   `PAZAAK_OAUTH_GOOGLE_*` Wrangler secrets take precedence in `resolveSocialAuthProviderConfig`
+   unless both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set — the Worker now prefers that pair
+   and ignores conflicting `PAZAAK_OAUTH_GOOGLE_*`. If you still see errors, delete stale secrets:
+   `wrangler secret delete PAZAAK_OAUTH_GOOGLE_CLIENT_ID` (and the other `PAZAAK_OAUTH_GOOGLE_*` keys),
+   then redeploy.
+
 Without these secrets, the UI correctly shows **Unavailable** / “Not enabled in
 this environment.” Local Vite dev falls back to all-disabled when the embedded
 API on port `4001` is not running.

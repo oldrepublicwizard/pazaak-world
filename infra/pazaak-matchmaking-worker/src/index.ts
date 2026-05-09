@@ -7,6 +7,7 @@ import {
   fetchGithubSocialAuthProfile,
   fetchGoogleSocialAuthProfile,
   resolveSocialAuthProviderConfig,
+  type EnvLookup,
 } from "@openkotor/platform/oauth";
 import {
   advanceTournament,
@@ -183,8 +184,45 @@ const DEFAULT_SETTINGS = {
 const SOCIAL_PROVIDERS = ["discord", "github", "google"] as const;
 type WorkerSocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 
+/**
+ * `resolveSocialAuthProviderConfig` prefers `PAZAAK_OAUTH_*` keys over `GOOGLE_*` / `GITHUB_*`.
+ * On Workers we commonly set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` via Wrangler; an older
+ * `PAZAAK_OAUTH_GOOGLE_CLIENT_ID` secret would incorrectly win and cause Google `invalid_client`.
+ * When the Wrangler-style pair is complete, hide PAZAAK_* so fallbacks apply (same for GitHub).
+ */
+function createWorkerSocialAuthLookup(env: Env): EnvLookup {
+  const base = createObjectEnvLookup(env);
+  const t = (key: string) => (base(key) ?? "").trim();
+  const googlePairComplete = t("GOOGLE_CLIENT_ID") !== "" && t("GOOGLE_CLIENT_SECRET") !== "";
+  const githubPairComplete = t("GITHUB_CLIENT_ID") !== "" && t("GITHUB_CLIENT_SECRET") !== "";
+
+  return (key: string) => {
+    if (googlePairComplete) {
+      if (
+        key === "PAZAAK_OAUTH_GOOGLE_CLIENT_ID" ||
+        key === "PAZAAK_OAUTH_GOOGLE_CLIENT_SECRET" ||
+        key === "PAZAAK_OAUTH_GOOGLE_CALLBACK_URL" ||
+        key === "PAZAAK_OAUTH_GOOGLE_URL"
+      ) {
+        return undefined;
+      }
+    }
+    if (githubPairComplete) {
+      if (
+        key === "PAZAAK_OAUTH_GITHUB_CLIENT_ID" ||
+        key === "PAZAAK_OAUTH_GITHUB_CLIENT_SECRET" ||
+        key === "PAZAAK_OAUTH_GITHUB_CALLBACK_URL" ||
+        key === "PAZAAK_OAUTH_GITHUB_URL"
+      ) {
+        return undefined;
+      }
+    }
+    return base(key);
+  };
+}
+
 function resolveOauthProviderConfig(env: Env, provider: WorkerSocialProvider) {
-  const lookup = createObjectEnvLookup(env);
+  const lookup = createWorkerSocialAuthLookup(env);
   let config = resolveSocialAuthProviderConfig(provider, lookup, {
     envMap: PAZAAK_SOCIAL_AUTH_PROVIDER_ENV_MAP,
     fallbackEnvKeys: {
