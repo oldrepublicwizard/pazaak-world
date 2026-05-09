@@ -1,10 +1,12 @@
 import {
+  DEFAULT_SOCIAL_AUTH_PROVIDER_ENV_MAP,
+  PAZAAK_SOCIAL_AUTH_PROVIDER_ENV_MAP,
   buildSocialAuthAuthorizeUrl,
   createObjectEnvLookup,
   fetchDiscordSocialAuthProfile,
   fetchGithubSocialAuthProfile,
   fetchGoogleSocialAuthProfile,
-  listSocialAuthProviders,
+  resolveSocialAuthProviderConfig,
 } from "@openkotor/platform/oauth";
 import {
   advanceTournament,
@@ -38,14 +40,25 @@ interface Env {
   DISCORD_CLIENT_ID?: string;
   DISCORD_CLIENT_SECRET?: string;
   DISCORD_REDIRECT_URI?: string;
+  PAZAAK_DISCORD_APP_ID?: string;
+  PAZAAK_DISCORD_CLIENT_SECRET?: string;
   DISCORD_BOT_TOKEN?: string;
   ALLOW_UNVERIFIED_INSTANCES?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   GITHUB_REDIRECT_URI?: string;
+  PAZAAK_OAUTH_GITHUB_CLIENT_ID?: string;
+  PAZAAK_OAUTH_GITHUB_CLIENT_SECRET?: string;
+  PAZAAK_OAUTH_GITHUB_CALLBACK_URL?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_REDIRECT_URI?: string;
+  PAZAAK_OAUTH_GOOGLE_CLIENT_ID?: string;
+  PAZAAK_OAUTH_GOOGLE_CLIENT_SECRET?: string;
+  PAZAAK_OAUTH_GOOGLE_CALLBACK_URL?: string;
+  PAZAAK_OAUTH_DISCORD_CLIENT_ID?: string;
+  PAZAAK_OAUTH_DISCORD_CLIENT_SECRET?: string;
+  PAZAAK_OAUTH_DISCORD_CALLBACK_URL?: string;
   PUBLIC_WEB_ORIGIN?: string;
   PAZAAK_POLICY_JSON?: string;
   ADMIN_USER_IDS?: string;
@@ -167,9 +180,46 @@ const DEFAULT_SETTINGS = {
   preferredAiDifficulty: "normal",
 };
 
+const SOCIAL_PROVIDERS = ["discord", "github", "google"] as const;
+type WorkerSocialProvider = (typeof SOCIAL_PROVIDERS)[number];
+
+function resolveOauthProviderConfig(env: Env, provider: WorkerSocialProvider) {
+  const lookup = createObjectEnvLookup(env);
+  let config = resolveSocialAuthProviderConfig(provider, lookup, {
+    envMap: PAZAAK_SOCIAL_AUTH_PROVIDER_ENV_MAP,
+    fallbackEnvKeys: {
+      google: DEFAULT_SOCIAL_AUTH_PROVIDER_ENV_MAP.google,
+      discord: DEFAULT_SOCIAL_AUTH_PROVIDER_ENV_MAP.discord,
+      github: DEFAULT_SOCIAL_AUTH_PROVIDER_ENV_MAP.github,
+    },
+  });
+  if (provider === "discord") {
+    if (!config.clientId) {
+      config = { ...config, clientId: env.PAZAAK_DISCORD_APP_ID?.trim() ?? "" };
+    }
+    if (!config.clientSecret) {
+      config = { ...config, clientSecret: env.PAZAAK_DISCORD_CLIENT_SECRET?.trim() ?? "" };
+    }
+  }
+  return config;
+}
+
+function oauthRedirectUriForProvider(provider: WorkerSocialProvider, callbackBase: string, callbackOverride: string): string {
+  if (callbackOverride) return callbackOverride;
+  if (provider === "discord") return `${callbackBase}/api/auth/oauth/discord/callback`;
+  if (provider === "github") return `${callbackBase}/api/auth/oauth/github/callback`;
+  return `${callbackBase}/api/auth/oauth/google/callback`;
+}
+
 function getOauthProviders(env: Env): { providers: Array<{ provider: string; enabled: boolean }> } {
   return {
-    providers: listSocialAuthProviders(createObjectEnvLookup(env)).map((entry) => ({
+    providers: SOCIAL_PROVIDERS.map((provider) => {
+      const config = resolveOauthProviderConfig(env, provider);
+      return {
+        provider,
+        enabled: Boolean(config.clientId && config.clientSecret),
+      };
+    }).map((entry) => ({
       provider: entry.provider,
       enabled: entry.enabled,
     })),
@@ -352,31 +402,22 @@ function consumeWorkerOauthState(state: string, provider: string): { pendingMatc
   return { pendingMatchId: entry.pendingMatchId };
 }
 
-function buildProviderAuthorizeUrl(provider: string, state: string, env: Env, callbackBase: string): string {
+function buildProviderAuthorizeUrl(provider: WorkerSocialProvider, state: string, env: Env, callbackBase: string): string {
   if (provider !== "discord" && provider !== "github" && provider !== "google") {
     throw new Error(`Unsupported provider: ${provider}`);
   }
+  const config = resolveOauthProviderConfig(env, provider);
 
   return buildSocialAuthAuthorizeUrl(provider, {
-    clientId: provider === "discord"
-      ? env.DISCORD_CLIENT_ID ?? ""
-      : provider === "github"
-        ? env.GITHUB_CLIENT_ID ?? ""
-        : env.GOOGLE_CLIENT_ID ?? "",
-    redirectUri: provider === "discord"
-      ? (env.DISCORD_REDIRECT_URI?.trim() || `${callbackBase}/api/auth/oauth/discord/callback`)
-      : provider === "github"
-        ? (env.GITHUB_REDIRECT_URI?.trim() || `${callbackBase}/api/auth/oauth/github/callback`)
-        : (env.GOOGLE_REDIRECT_URI?.trim() || `${callbackBase}/api/auth/oauth/google/callback`),
+    clientId: config.clientId,
+    redirectUri: oauthRedirectUriForProvider(provider, callbackBase, config.callbackUrl),
     state,
   }, {
     discordApiBase: DISCORD_API,
   });
 }
 
-const SOCIAL_PROVIDERS = ["discord", "github", "google"] as const;
-
-async function handleOauthStart(request: Request, env: Env, provider: string, callbackBase: string): Promise<Response> {
+async function handleOauthStart(request: Request, env: Env, provider: WorkerSocialProvider, callbackBase: string): Promise<Response> {
   if (request.method !== "POST") return error("Method not allowed", 405);
   let pendingMatchId: string | undefined;
   try {
@@ -388,7 +429,7 @@ async function handleOauthStart(request: Request, env: Env, provider: string, ca
   return json({ provider, redirectUrl });
 }
 
-async function handleOauthCallback(request: Request, env: Env, provider: string, callbackBase: string, coordinatorStub: { fetch(req: Request): Promise<Response> }): Promise<Response> {
+async function handleOauthCallback(request: Request, env: Env, provider: WorkerSocialProvider, callbackBase: string, coordinatorStub: { fetch(req: Request): Promise<Response> }): Promise<Response> {
   const url = new URL(request.url);
   const code = url.searchParams.get("code") ?? "";
   const state = url.searchParams.get("state") ?? "";
@@ -413,28 +454,33 @@ async function handleOauthCallback(request: Request, env: Env, provider: string,
   }
 
   try {
+    const oauthConfig = resolveOauthProviderConfig(env, provider);
+    if (!oauthConfig.clientId || !oauthConfig.clientSecret) {
+      throw new Error(`OAuth provider ${provider} is not configured on this server.`);
+    }
+    const redirectUri = oauthRedirectUriForProvider(provider, callbackBase, oauthConfig.callbackUrl);
     let profile: { providerUserId: string; username: string; displayName: string; email: string | null };
     if (provider === "discord") {
       profile = await fetchDiscordSocialAuthProfile(code, {
-        clientId: env.DISCORD_CLIENT_ID!,
-        clientSecret: env.DISCORD_CLIENT_SECRET!,
-        redirectUri: env.DISCORD_REDIRECT_URI?.trim() ?? "",
+        clientId: oauthConfig.clientId,
+        clientSecret: oauthConfig.clientSecret,
+        redirectUri,
       }, {
         discordApiBase: DISCORD_API,
       });
     } else if (provider === "github") {
       profile = await fetchGithubSocialAuthProfile(code, {
-        clientId: env.GITHUB_CLIENT_ID!,
-        clientSecret: env.GITHUB_CLIENT_SECRET!,
-        redirectUri: env.GITHUB_REDIRECT_URI?.trim() ?? "",
+        clientId: oauthConfig.clientId,
+        clientSecret: oauthConfig.clientSecret,
+        redirectUri,
       }, {
         userAgent: "PazaakWorld/1.0",
       });
     } else {
       profile = await fetchGoogleSocialAuthProfile(code, {
-        clientId: env.GOOGLE_CLIENT_ID!,
-        clientSecret: env.GOOGLE_CLIENT_SECRET!,
-        redirectUri: env.GOOGLE_REDIRECT_URI?.trim() || `${callbackBase}/api/auth/oauth/google/callback`,
+        clientId: oauthConfig.clientId,
+        clientSecret: oauthConfig.clientSecret,
+        redirectUri,
       });
     }
 
@@ -511,7 +557,7 @@ export default {
     // OAuth start — handled here so we have env access for client IDs
     const oauthStartMatch = url.pathname.match(/^\/api\/auth\/oauth\/([a-z]+)\/start$/);
     if (oauthStartMatch) {
-      const provider = oauthStartMatch[1];
+      const provider = oauthStartMatch[1] as WorkerSocialProvider;
       if (!(SOCIAL_PROVIDERS as readonly string[]).includes(provider)) {
         return error("Unsupported OAuth provider.", 404);
       }
@@ -525,7 +571,7 @@ export default {
     // OAuth callback — handled here so we can redirect to the frontend
     const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/oauth\/([a-z]+)\/callback$/);
     if (oauthCallbackMatch && request.method === "GET") {
-      const provider = oauthCallbackMatch[1];
+      const provider = oauthCallbackMatch[1] as WorkerSocialProvider;
       if (!(SOCIAL_PROVIDERS as readonly string[]).includes(provider)) {
         return error("Unsupported OAuth provider.", 404);
       }
@@ -1302,10 +1348,9 @@ export class MatchCoordinator {
       const matchId = crypto.randomUUID();
       const ra = [policy.matchmaking.defaultRegionId];
       const rb = [policy.matchmaking.defaultRegionId];
-      const hint = pickLocationHint(ra, rb, policy);
       const namespace = this.env.MATCH_ACTOR;
       const stub = namespace.get(
-        hint ? namespace.idFromName(matchId, { locationHint: hint }) : namespace.idFromName(matchId),
+        namespace.idFromName(matchId),
       );
       const gm = lobby.tableSettings.gameMode === "wacky" ? "wacky" : "canonical";
       const createRes = await stub.fetch(
@@ -1530,9 +1575,8 @@ export class MatchCoordinator {
           continue;
         }
         const matchId = crypto.randomUUID();
-        const hint = pickLocationHint(ra, rb, policy);
         const stub = namespace.get(
-          hint ? namespace.idFromName(matchId, { locationHint: hint }) : namespace.idFromName(matchId),
+          namespace.idFromName(matchId),
         );
         const res = await stub.fetch(
           new Request("http://internal/create", {

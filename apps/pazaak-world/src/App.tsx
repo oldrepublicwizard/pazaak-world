@@ -28,6 +28,7 @@ import {
   fetchPublicPazaakConfig,
   enqueueMatchmaking,
   fetchSocialAuthProviders,
+  getPrimaryBrowserApiOrigin,
   fetchMatchmakingStats,
   fetchMatchmakingStatus,
   fetchHistory,
@@ -1967,6 +1968,7 @@ function AuthDialog({
   const [error, setError] = useState<string | null>(initialMessage ?? null);
   const [providers, setProviders] = useState<SocialAuthProviderConfig[]>([]);
   const [providersLoading, setProvidersLoading] = useState(false);
+  const [providerAvailabilityHint, setProviderAvailabilityHint] = useState<string | null>(null);
   const authDialogRef = useRef<HTMLDivElement | null>(null);
   const loginTabRef = useRef<HTMLButtonElement | null>(null);
   const registerTabRef = useRef<HTMLButtonElement | null>(null);
@@ -2067,11 +2069,23 @@ function AuthDialog({
 
     let active = true;
     setProvidersLoading(true);
+    setProviderAvailabilityHint(null);
     const load = async () => {
       try {
         const result = await fetchSocialAuthProviders();
         if (!active) return;
         setProviders(result.providers);
+        const anyEnabled = result.providers.some((provider) => provider.enabled);
+        if (!anyEnabled) {
+          const apiOrigin = getPrimaryBrowserApiOrigin();
+          setProviderAvailabilityHint(
+            apiOrigin
+              ? `OAuth providers are disabled on ${apiOrigin}. Add provider client ID + client secret pairs on the API server (.env) and restart it.`
+              : "OAuth providers are disabled. Configure VITE_API_BASES or VITE_LEGACY_HTTP_ORIGIN and ensure server-side OAuth keys are present in .env.",
+          );
+        } else {
+          setProviderAvailabilityHint(null);
+        }
       } catch {
         if (!active) return;
         setProviders([
@@ -2079,6 +2093,12 @@ function AuthDialog({
           { provider: "discord", enabled: false },
           { provider: "github", enabled: false },
         ]);
+        const apiOrigin = getPrimaryBrowserApiOrigin();
+        setProviderAvailabilityHint(
+          apiOrigin
+            ? `Could not reach ${apiOrigin} to load OAuth provider status. Verify API availability and OAuth env keys, then reload.`
+            : "Could not load OAuth provider status. Set VITE_API_BASES or VITE_LEGACY_HTTP_ORIGIN to a live API and verify OAuth keys in the backend .env.",
+        );
       } finally {
         if (!active) return;
         setProvidersLoading(false);
@@ -2323,6 +2343,9 @@ function AuthDialog({
         </div>
         {providersLoading ? (
           <p className="sr-only" role="status" aria-live="polite">Checking provider availability.</p>
+        ) : null}
+        {!providersLoading && providerAvailabilityHint ? (
+          <p className="pazaak-world-auth-footnote" role="status" aria-live="polite">{providerAvailabilityHint}</p>
         ) : null}
 
         <div className="pazaak-world-auth-divider" role="separator" aria-label="Or continue with credentials">
