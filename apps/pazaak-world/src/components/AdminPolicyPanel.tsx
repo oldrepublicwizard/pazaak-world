@@ -37,7 +37,11 @@ export function AdminPolicyPanel({ isOpen, accessToken, onClose }: AdminPolicyPa
     setBusy(true);
     setStatus(null);
     try {
-      const patch = JSON.parse(text) as unknown;
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Policy must be a JSON object");
+      }
+      const patch = parsed as Record<string, unknown>;
       await putAdminPolicy(accessToken, patch);
       setStatus("Saved.");
       await load();

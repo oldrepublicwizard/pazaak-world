@@ -35,7 +35,6 @@ import {
   bootstrapNakamaActivitySession,
   getNakamaClient,
   isNakamaBackend,
-  nakamaAsError,
   nakamaRpc,
   sessionFromPazaakAccessToken,
   tryDecodeNakamaCredential,
@@ -335,16 +334,12 @@ async function nakamaMatchSnapshot(accessToken: string, logicalMatchId: string):
   if (!logicalMatchId || typeof logicalMatchId !== "string") {
     throw new Error("Invalid match ID");
   }
-
   try {
     console.debug("[nakamaMatchSnapshot] Fetching match snapshot for %s", logicalMatchId);
-    
     const data = await nakamaRpc<{ match: unknown }>(accessToken, "pazaak.match_get", { matchId: logicalMatchId });
-    
     if (!data.match) {
       throw new Error("Match not found");
     }
-    
     // Validate match structure
     const match = data.match as Record<string, unknown>;
     if (
@@ -354,9 +349,8 @@ async function nakamaMatchSnapshot(accessToken: string, logicalMatchId: string):
     ) {
       throw new Error("Invalid match data structure from server");
     }
-    
     console.debug("[nakamaMatchSnapshot] Successfully fetched match snapshot");
-    return match as SerializedMatch;
+    return match as unknown as SerializedMatch;
   } catch (err) {
     const error = await nakamaAsError(err, "Failed to fetch match snapshot");
     console.error("[nakamaMatchSnapshot]", error.message);
@@ -576,7 +570,6 @@ function validateBlackjackRules(data: unknown): BlackjackRulesConfig {
   if (!data || typeof data !== "object") {
     throw new Error("Invalid blackjack rules: must be an object");
   }
-  
   const obj = data as Record<string, unknown>;
   
   if (typeof obj.decks !== "number" || obj.decks < 1 || obj.decks > 8) {
@@ -611,7 +604,7 @@ function validateBlackjackRules(data: unknown): BlackjackRulesConfig {
     throw new Error("Invalid blackjack rules: blackjackPayoutRatio must be '3:2' or '6:5'");
   }
   
-  return obj as BlackjackRulesConfig;
+  return obj as unknown as BlackjackRulesConfig;
 }
 
 export async function fetchBlackjackRules(accessToken: string): Promise<BlackjackRulesResponse> {
@@ -648,9 +641,7 @@ function validateCrateOpenResponse(data: unknown): CrateOpenResponse {
   if (!data || typeof data !== "object") {
     throw new Error("Invalid crate response: expected an object");
   }
-  
   const obj = data as Record<string, unknown>;
-  
   // Validate wallet
   if (!obj.wallet || typeof obj.wallet !== "object") {
     throw new Error("Invalid crate response: missing or invalid wallet");
@@ -662,7 +653,6 @@ function validateCrateOpenResponse(data: unknown): CrateOpenResponse {
   if (!Array.isArray(walletObj.tokens) || !walletObj.tokens.every((t: unknown) => typeof t === "string")) {
     throw new Error("Invalid crate response: wallet tokens must be an array of strings");
   }
-  
   // Validate opened rewards
   if (!obj.opened || typeof obj.opened !== "object") {
     throw new Error("Invalid crate response: missing or invalid opened rewards");
@@ -674,14 +664,12 @@ function validateCrateOpenResponse(data: unknown): CrateOpenResponse {
   if (typeof openedObj.bonusCredits !== "number" || openedObj.bonusCredits < 0) {
     throw new Error("Invalid crate response: bonusCredits must be a non-negative number");
   }
-  
   // Validate kind
   if (obj.kind !== "standard" && obj.kind !== "premium") {
     throw new Error("Invalid crate response: kind must be 'standard' or 'premium'");
   }
-  
   return {
-    wallet: walletObj as WalletRecord,
+    wallet: walletObj as unknown as WalletRecord,
     opened: openedObj as { tokens: string[]; bonusCredits: number },
     kind: obj.kind as "standard" | "premium",
   };
@@ -697,7 +685,7 @@ export async function openRewardCrate(accessToken: string, kind: "standard" | "p
     try {
       console.debug("[openRewardCrate] Opening %s crate via Nakama", kind);
       
-      const response = await nakamaRpc<unknown>(
+      const response = await nakamaRpc<{}>(
         accessToken,
         "pazaak.crate_open",
         { kind },
@@ -749,19 +737,15 @@ function validateAuthSessionResponse(data: unknown): AuthSessionResponse {
   if (!data || typeof data !== "object") {
     throw new Error("Invalid auth response: expected an object");
   }
-
   const obj = data as Record<string, unknown>;
-
   // Validate app_token
   if (typeof obj.app_token !== "string" || !obj.app_token.trim()) {
     throw new Error("Invalid auth response: missing or empty app_token");
   }
-
   // Validate token_type
   if (obj.token_type !== "Bearer") {
     throw new Error("Invalid auth response: unsupported token_type");
   }
-
   // Validate account
   if (!obj.account || typeof obj.account !== "object") {
     throw new Error("Invalid auth response: missing account information");
@@ -773,7 +757,6 @@ function validateAuthSessionResponse(data: unknown): AuthSessionResponse {
   if (typeof account.username !== "string" || !account.username.trim()) {
     throw new Error("Invalid auth response: missing username");
   }
-
   // Validate session
   if (!obj.session || typeof obj.session !== "object") {
     throw new Error("Invalid auth response: missing session information");
@@ -782,13 +765,11 @@ function validateAuthSessionResponse(data: unknown): AuthSessionResponse {
   if (typeof session.sessionId !== "string" || !session.sessionId.trim()) {
     throw new Error("Invalid auth response: missing sessionId");
   }
-
   // Validate linkedIdentities
   if (!Array.isArray(obj.linkedIdentities)) {
     throw new Error("Invalid auth response: linkedIdentities must be an array");
   }
-
-  return obj as AuthSessionResponse;
+  return obj as unknown as AuthSessionResponse;
 }
 
 export async function registerAccount(input: {
