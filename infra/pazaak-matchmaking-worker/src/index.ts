@@ -615,14 +615,37 @@ async function handleOauthCallback(request: Request, env: Env, provider: WorkerS
     const redirectUri = oauthRedirectUriForProvider(provider, callbackBase, oauthConfig.callbackUrl);
     let profile: { providerUserId: string; username: string; displayName: string; email: string | null };
     if (provider === "discord") {
-      profile = await fetchDiscordSocialAuthProfile(code, {
-        clientId: oauthConfig.clientId,
-        clientSecret: discordPkceEnabled ? "" : oauthConfig.clientSecret,
-        redirectUri,
-      }, {
-        discordApiBase: DISCORD_API,
-        codeVerifier: discordPkceEnabled ? pending.codeVerifier : undefined,
-      });
+      const secretCandidates = Array.from(new Set([
+        oauthConfig.clientSecret?.trim() ?? "",
+        env.PAZAAK_DISCORD_CLIENT_SECRET?.trim() ?? "",
+        env.DISCORD_CLIENT_SECRET?.trim() ?? "",
+        "",
+      ]));
+      let discordError: unknown;
+      let discordProfile: { providerUserId: string; username: string; displayName: string; email: string | null } | null = null;
+      for (const candidateSecret of secretCandidates) {
+        try {
+          discordProfile = await fetchDiscordSocialAuthProfile(code, {
+            clientId: oauthConfig.clientId,
+            clientSecret: candidateSecret,
+            redirectUri,
+          }, {
+            discordApiBase: DISCORD_API,
+            codeVerifier: discordPkceEnabled ? pending.codeVerifier : undefined,
+          });
+          break;
+        } catch (error) {
+          discordError = error;
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.toLowerCase().includes("invalid_client")) {
+            throw error;
+          }
+        }
+      }
+      if (!discordProfile) {
+        throw discordError instanceof Error ? discordError : new Error("Discord token exchange failed.");
+      }
+      profile = discordProfile;
     } else if (provider === "github") {
       profile = await fetchGithubSocialAuthProfile(code, {
         clientId: oauthConfig.clientId,
