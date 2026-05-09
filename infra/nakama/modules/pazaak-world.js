@@ -230,7 +230,7 @@ var pazaakOpponents = [
       winGame: phraseList("Yousa no match for meesa!", "Meesa champion now!", "Big win for meesa!"),
       loseGame: phraseList("Ohhh, meesa clumsy.", "Yousa too strong.", "Maybe next game, okeeday.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   },
   {
     id: "c3po",
@@ -255,7 +255,7 @@ var pazaakOpponents = [
       winGame: phraseList("I am quite surprised myself!", "A victory! I must inform Master Luke.", "How wonderful."),
       loseGame: phraseList("I told you I was not programmed for this.", "Oh, this is most embarrassing.", "I fear I have disappointed everyone.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   },
   {
     id: "butters",
@@ -272,7 +272,7 @@ var pazaakOpponents = [
     prizes: { credits: 50, cards: [] },
     sideDeckTokens: ["+1", "+2", "+3", "+1", "+2", "-1", "-2", "-3", "-1", "-2"],
     phrases: singlePhraseSet("Everyone knows it is Butters. That is me.", "Do you know what I am saying?", "I am staying right here.", "That worked out neat.", "Oh, hamburgers.", "I won the whole game.", "Aw shucks, you beat me."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "porkins",
@@ -297,7 +297,7 @@ var pazaakOpponents = [
       winGame: phraseList("Red Six standing by... victorious!", "Mission complete.", "Good flying out there."),
       loseGame: phraseList("Eject! Eject!", "You outflew me.", "I will get you next sortie.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   },
   {
     id: "hk47",
@@ -322,7 +322,7 @@ var pazaakOpponents = [
       winGame: phraseList("Recitation: You lose, meatbag.", "Statement: Elimination complete.", "Conclusion: I remain superior."),
       loseGame: phraseList("Resentful accolade: Congratulations... meatbag.", "Statement: This unit will remember this.", "Observation: Temporary setback.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   },
   {
     id: "hal9000",
@@ -348,7 +348,7 @@ var pazaakOpponents = [
       winGame: phraseList("This conversation can serve no purpose anymore.", "Game complete.", "Thank you for a very enjoyable game."),
       loseGame: phraseList("My behavior appears to be back to normal.", "I can assure you this is temporary.", "You have made an interesting move.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   },
   {
     id: "republic_soldier",
@@ -365,7 +365,7 @@ var pazaakOpponents = [
     prizes: { credits: 100, cards: [] },
     sideDeckTokens: ["+1", "+2", "+3", "+4", "+5", "-1", "-2", "-3", "-4", "-5"],
     phrases: singlePhraseSet("For the Republic!", "Standard tactics.", "Holding position.", "Mission accomplished.", "We will regroup.", "Victory for the Republic!", "I will report back to command."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "ig88",
@@ -382,7 +382,7 @@ var pazaakOpponents = [
     prizes: { credits: 300, cards: [] },
     sideDeckTokens: ["+1", "+2", "+3", "+4", "+5", "-1", "-2", "*1", "*2", "*3"],
     phrases: singlePhraseSet("TARGET ACQUIRED. INITIATING PAZAAK PROTOCOL.", "CALCULATING OPTIMAL MOVE.", "STANDING. AWAITING TARGET RESPONSE.", "TARGET NEUTRALIZED.", "RECALCULATING STRATEGY.", "MISSION COMPLETE. TARGET DEFEATED.", "SYSTEM ERROR. MISSION FAILED."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "trump",
@@ -399,7 +399,7 @@ var pazaakOpponents = [
     prizes: { credits: 350, cards: [] },
     sideDeckTokens: ["+1", "+2", "+3", "+4", "+5", "-1", "-2", "*1", "*2", "*3"],
     phrases: singlePhraseSet("Nobody plays Pazaak better than me. Believe me.", "This is a tremendous play.", "I like this number. Strong number.", "That was a beautiful round.", "Bad deal. Very bad deal.", "We won. We won big.", "We will look at the numbers again."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "yoda",
@@ -416,7 +416,7 @@ var pazaakOpponents = [
     prizes: { credits: 600, cards: [] },
     sideDeckTokens: ["*1", "*2", "*3", "*4", "*5", "*1", "*2", "*3", "*4", "*5"],
     phrases: singlePhraseSet("Play Pazaak, we shall. Hmmmm.", "Wise, this move is.", "Stand, I will. Strong in the Force, my position is.", "Expected, this outcome was.", "Clouded, the future is. Lose sometimes, even Jedi do.", "Powerful you have become, but not enough.", "Impressed, I am. Learn from defeat, I will."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "theemperor",
@@ -433,7 +433,7 @@ var pazaakOpponents = [
     prizes: { credits: 1200, cards: [] },
     sideDeckTokens: ["*1", "*2", "*3", "*4", "*5", "*1", "*2", "*3", "*4", "*5"],
     phrases: singlePhraseSet("Your feeble skills are no match for the power of the Dark Side.", "Everything proceeds as I have foreseen.", "Now witness the firepower of this fully armed position!", "Your faith in your cards was misplaced.", "Your overconfidence is your weakness.", "Now, young player... you will lose.", "No. You were supposed to lose."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "revan",
@@ -458,7 +458,7 @@ var pazaakOpponents = [
       winGame: phraseList("Your strategy was predictable.", "The outcome was inevitable.", "This match is concluded."),
       loseGame: phraseList("Impressive. Few can do that.", "You have earned this victory.", "I will remember this lesson.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   },
   {
     id: "atton",
@@ -500,7 +500,7 @@ var pazaakOpponents = [
     prizes: { credits: 4e3, cards: [] },
     sideDeckTokens: ["*1", "*2", "*3", "*4", "*5", "*1", "*2", "*3", "*4", "*5"],
     phrases: singlePhraseSet("Say... that is a nice deck.", "ANALYZING.", "OPTIMAL POSITION ACHIEVED.", "RESISTANCE IS FUTILE.", "TEMPORARY SETBACK DETECTED.", "TARGET TERMINATED.", "I WILL BE BACK."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "drchannard",
@@ -517,7 +517,7 @@ var pazaakOpponents = [
     prizes: { credits: 12e3, cards: [] },
     sideDeckTokens: ["*1", "*2", "*3", "*4", "*5", "*1", "*2", "*3", "*4", "*5"],
     phrases: singlePhraseSet("And to think... I hesitated.", "The mind is a labyrinth.", "I have such sights to show you.", "Your suffering will be legendary.", "Pain has a face. Allow me to show you.", "Hell has no limits.", "Impossible. I was promised eternity."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "blaine",
@@ -534,7 +534,7 @@ var pazaakOpponents = [
     prizes: { credits: 5e5, cards: [] },
     sideDeckTokens: ["*1", "*2", "*3", "*4", "*5", "*1", "*2", "*3", "*4", "*5"],
     phrases: singlePhraseSet("I will tire quickly of besting you in this simple ancient game.", "CALCULATION COMPLETE.", "Do you know the riddle of this position?", "Predictable. Boring. Next.", "A riddle I did not expect.", "The game is done. Your journey ends.", "Ask me a riddle."),
-    sources: ["HoloPazaak"]
+    sources: ["Community"]
   },
   {
     id: "nu",
@@ -559,7 +559,7 @@ var pazaakOpponents = [
       winGame: phraseList("All matches begin with Nu and end with Nu.", "The circle is complete.", "You have arrived where I expected."),
       loseGame: phraseList("Interesting... most interesting.", "A rare branch of fate.", "The ending changed.")
     },
-    sources: ["HoloPazaak", "pazaak-world"]
+    sources: ["Community", "pazaak-world"]
   }
 ];
 

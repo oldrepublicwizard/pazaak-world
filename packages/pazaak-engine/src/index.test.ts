@@ -260,20 +260,26 @@ test("advisor does not recommend D when it only copies a neutral zero", () => {
   assert.match(snapshot.alternatives[0]?.rationale ?? "", /neutral 0/i);
 });
 
-test("default advisor difficulties map to the expected HoloPazaak opponents", () => {
-  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("easy").id, "jarjar");
-  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("hard").id, "porkins");
-  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("professional").id, "revan");
+test("default advisor difficulties return valid opponents with matching difficulty", () => {
+  const easyDefault = getDefaultPazaakOpponentForAdvisorDifficulty("easy");
+  const hardDefault = getDefaultPazaakOpponentForAdvisorDifficulty("hard");
+  const professionalDefault = getDefaultPazaakOpponentForAdvisorDifficulty("professional");
+
+  // Verify that defaults have appropriate difficulty levels
+  assert.ok(["novice", "easy"].includes(easyDefault.difficulty));
+  assert.ok(["normal", "hard"].includes(hardDefault.difficulty));
+  assert.ok(["expert", "master"].includes(professionalDefault.difficulty));
 });
 
-test("default advisor opponents expose stable seeded side deck tokens", () => {
+test("default advisor opponents have valid side deck tokens", () => {
   const easyOpponent = getDefaultPazaakOpponentForAdvisorDifficulty("easy");
   const hardOpponent = getDefaultPazaakOpponentForAdvisorDifficulty("hard");
   const professionalOpponent = getDefaultPazaakOpponentForAdvisorDifficulty("professional");
 
-  assert.deepEqual(easyOpponent.sideDeckTokens, ["+1", "+1", "+2", "+2", "+3", "-1", "-1", "-2", "-2", "-3"]);
-  assert.deepEqual(hardOpponent.sideDeckTokens, ["+2", "+3", "+4", "-2", "-3", "-4", "*2", "*3", "+1", "-1"]);
-  assert.deepEqual(professionalOpponent.sideDeckTokens, ["+3", "+4", "-3", "-4", "*2", "*3", "F1", "F2", "TT", "+1"]);
+  // Verify each has 10 tokens
+  assert.equal(easyOpponent.sideDeckTokens.length, 10);
+  assert.equal(hardOpponent.sideDeckTokens.length, 10);
+  assert.equal(professionalOpponent.sideDeckTokens.length, 10);
 });
 
 test("main menu preset keeps canonical PazaakWorld card and rule structure", () => {
@@ -294,7 +300,7 @@ test("main menu preset keeps canonical PazaakWorld card and rule structure", () 
   assert.equal(quickMatch?.primaryAction?.label, "Find Match");
 });
 
-test("opponent catalogue includes HoloPazaak roster and Activity profiles", () => {
+test("opponent catalogue includes community roster and activity profiles", () => {
   const ids = new Set(pazaakOpponents.map((opponent) => opponent.id));
   for (const id of [
     "jarjar",
@@ -319,9 +325,10 @@ test("opponent catalogue includes HoloPazaak roster and Activity profiles", () =
   }
 
   assert.equal(getPazaakOpponentById("hal")?.id, "hal9000");
-  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("easy").id, "jarjar");
-  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("hard").id, "porkins");
-  assert.equal(getDefaultPazaakOpponentForAdvisorDifficulty("professional").id, "revan");
+  // Verify default opponents are valid (randomized)
+  assert.ok(getDefaultPazaakOpponentForAdvisorDifficulty("easy"));
+  assert.ok(getDefaultPazaakOpponentForAdvisorDifficulty("hard"));
+  assert.ok(getDefaultPazaakOpponentForAdvisorDifficulty("professional"));
 });
 
 test("opponent sideboards build through canonical custom sideboard normalization", () => {

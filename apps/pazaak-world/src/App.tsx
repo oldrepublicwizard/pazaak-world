@@ -1567,7 +1567,7 @@ function ModeSelectionScreen({
           <div className="pazaak-world-opponents__header">
             <div>
               <h2 id="pazaak-opponent-catalogue-title"><span aria-hidden="true">{menuIcon("user")}</span>Opponent Catalogue</h2>
-              <p>{availableOpponents.length} merged profiles from HoloPazaak, PazaakWorld, and Activity practice.</p>
+              <p>{availableOpponents.length} merged profiles from Community Opponents, PazaakWorld, and Activity practice.</p>
               <p className="pazaak-world-opponents__hint">Double-click any opponent card to challenge instantly.</p>
             </div>
             <button className="pazaak-world-button pazaak-world-button--galaxy" onClick={() => onStartLocalGame(selectedOpponent.difficulty, selectedOpponent.id)}>
