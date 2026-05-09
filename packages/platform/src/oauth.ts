@@ -41,6 +41,7 @@ export interface SocialAuthProfile {
 export interface FetchDiscordSocialAuthProfileOptions {
   discordApiBase?: string;
   resolveDisplayName?: (profile: { username: string; global_name: string | null }) => string;
+  codeVerifier?: string;
 }
 
 export interface FetchGithubSocialAuthProfileOptions {
@@ -167,6 +168,15 @@ const readErrorMessage = async (response: Response, fallback: string): Promise<s
   return body.trim() || fallback;
 };
 
+const toBasicAuthHeader = (clientId: string, clientSecret: string): string => {
+  const payload = `${clientId}:${clientSecret}`;
+  const maybeBuffer = (globalThis as { Buffer?: { from(input: string): { toString(encoding: string): string } } }).Buffer;
+  if (maybeBuffer) {
+    return `Basic ${maybeBuffer.from(payload).toString("base64")}`;
+  }
+  return `Basic ${btoa(payload)}`;
+};
+
 const expectAccessToken = (provider: string, value: { access_token?: string }, status = 401): string => {
   if (!value.access_token) {
     throw Object.assign(new Error(`${provider} token response did not include an access token.`), { status });
@@ -232,16 +242,26 @@ export const fetchDiscordSocialAuthProfile = async (
 ): Promise<SocialAuthProfile> => {
   const discordApiBase = options.discordApiBase ?? "https://discord.com/api/v10";
   const resolveDisplayName = options.resolveDisplayName ?? ((profile: { username: string; global_name: string | null }) => profile.global_name?.trim() || profile.username);
+  const body = new URLSearchParams({
+    code,
+    client_id: config.clientId,
+    redirect_uri: config.redirectUri,
+    grant_type: "authorization_code",
+  });
+  if (config.clientSecret?.trim()) {
+    body.set("client_secret", config.clientSecret.trim());
+  }
+  if (options.codeVerifier?.trim()) {
+    body.set("code_verifier", options.codeVerifier.trim());
+  }
+  const headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
+  if (config.clientSecret?.trim()) {
+    headers.Authorization = toBasicAuthHeader(config.clientId, config.clientSecret.trim());
+  }
   const tokenRes = await fetch(`${discordApiBase}/oauth2/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
-      grant_type: "authorization_code",
-    }),
+    headers,
+    body,
   });
 
   if (!tokenRes.ok) {
