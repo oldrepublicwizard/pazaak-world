@@ -38,6 +38,8 @@ interface Env {
   RELAY_ROOM: DurableObjectNamespace;
   MATCH_ACTOR: DurableObjectNamespace;
   SERVICE_NAME?: string;
+  SESSION_JWT_SECRET?: string;
+  PAZAAK_SESSION_JWT_SECRET?: string;
   DISCORD_CLIENT_ID?: string;
   DISCORD_CLIENT_SECRET?: string;
   DISCORD_PUBLIC_CLIENT?: string;
@@ -174,6 +176,17 @@ type RelayVerifyEntry = {
   expiresAt: number;
 };
 
+type SessionTokenClaims = {
+  iss: string;
+  aud: string;
+  sub: string;
+  sid: string;
+  iat: number;
+  exp: number;
+  typ: "access";
+  v: 1;
+};
+
 const DEFAULT_SETTINGS = {
   theme: "kotor",
   soundEnabled: true,
@@ -181,6 +194,10 @@ const DEFAULT_SETTINGS = {
   turnTimerSeconds: 45,
   preferredAiDifficulty: "normal",
 };
+
+const SESSION_JWT_ISSUER = "openkotor-pazaak";
+const SESSION_JWT_AUDIENCE = "pazaak-world";
+const SESSION_TOKEN_VERSION = 1;
 
 const SOCIAL_PROVIDERS = ["discord", "github", "google"] as const;
 type WorkerSocialProvider = (typeof SOCIAL_PROVIDERS)[number];
@@ -354,6 +371,139 @@ function nowIso(): string {
 
 function plusDaysIso(days: number): string {
   return new Date(Date.now() + (days * 24 * 60 * 60 * 1000)).toISOString();
+}
+
+function isoToEpochSeconds(value: string): number {
+  return Math.floor(new Date(value).getTime() / 1000);
+}
+
+function stringToBase64Url(value: string): string {
+  return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(value: string): Uint8Array {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function decodeBase64UrlJson<T>(value: string): T | null {
+  try {
+    const bytes = base64UrlToBytes(value);
+    const jsonText = new TextDecoder().decode(bytes);
+    return JSON.parse(jsonText) as T;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSessionSigningSecret(env: Env): string {
+  const candidates = [
+    env.PAZAAK_SESSION_JWT_SECRET,
+    env.SESSION_JWT_SECRET,
+    env.PAZAAK_OAUTH_DISCORD_CLIENT_SECRET,
+    env.PAZAAK_DISCORD_CLIENT_SECRET,
+    env.DISCORD_CLIENT_SECRET,
+    env.PAZAAK_OAUTH_GITHUB_CLIENT_SECRET,
+    env.GITHUB_CLIENT_SECRET,
+    env.PAZAAK_OAUTH_GOOGLE_CLIENT_SECRET,
+    env.GOOGLE_CLIENT_SECRET,
+  ];
+  for (const candidate of candidates) {
+    const value = candidate?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return env.SERVICE_NAME?.trim() || "openkotor-pazaak-dev-session-secret";
+}
+
+async function importSessionSigningKey(env: Env): Promise<CryptoKey> {
+  return await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(resolveSessionSigningSecret(env)),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+async function createSignedSessionToken(accountId: string, sessionId: string, expiresAt: string, env: Env): Promise<string> {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const claims: SessionTokenClaims = {
+    iss: SESSION_JWT_ISSUER,
+    aud: SESSION_JWT_AUDIENCE,
+    sub: accountId,
+    sid: sessionId,
+    iat: nowSeconds,
+    exp: isoToEpochSeconds(expiresAt),
+    typ: "access",
+    v: SESSION_TOKEN_VERSION,
+  };
+  const header = stringToBase64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = stringToBase64Url(JSON.stringify(claims));
+  const signingInput = `${header}.${payload}`;
+  const signature = await crypto.subtle.sign("HMAC", await importSessionSigningKey(env), new TextEncoder().encode(signingInput));
+  return `${signingInput}.${bytesToBase64Url(new Uint8Array(signature))}`;
+}
+
+async function verifySignedSessionToken(token: string, env: Env): Promise<SessionTokenClaims | null> {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [headerPart, payloadPart, signaturePart] = parts;
+  const header = decodeBase64UrlJson<{ alg?: string; typ?: string }>(headerPart);
+  const claims = decodeBase64UrlJson<SessionTokenClaims>(payloadPart);
+  if (!header || !claims) {
+    return null;
+  }
+  if (header.alg !== "HS256" || header.typ !== "JWT") {
+    return null;
+  }
+  if (
+    claims.iss !== SESSION_JWT_ISSUER
+    || claims.aud !== SESSION_JWT_AUDIENCE
+    || claims.typ !== "access"
+    || claims.v !== SESSION_TOKEN_VERSION
+    || !claims.sid
+    || !claims.sub
+  ) {
+    return null;
+  }
+  if (claims.exp <= Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+  const verified = await crypto.subtle.verify(
+    "HMAC",
+    await importSessionSigningKey(env),
+    base64UrlToBytes(signaturePart),
+    new TextEncoder().encode(`${headerPart}.${payloadPart}`),
+  );
+  return verified ? claims : null;
+}
+
+async function createSessionRecord(accountId: string, env: Env): Promise<SessionState> {
+  const createdAt = nowIso();
+  const expiresAt = plusDaysIso(30);
+  const sessionId = crypto.randomUUID();
+  const token = await createSignedSessionToken(accountId, sessionId, expiresAt, env);
+  return {
+    sessionId,
+    token,
+    accountId,
+    createdAt,
+    lastUsedAt: createdAt,
+    expiresAt,
+  };
 }
 
 function parseAuthToken(req: Request): string | null {
@@ -1064,14 +1214,28 @@ export class MatchCoordinator {
     await this.ctx.storage.put("state", state);
   }
 
-  private resolveSession(token: string | null, state: StorageShape): { account: AccountState; session: SessionState } | null {
+  private async resolveSession(
+    token: string | null,
+    state: StorageShape,
+  ): Promise<{ account: AccountState; session: SessionState; storageKey: string } | null> {
     if (!token) return null;
-    const session = state.sessions[token];
-    if (!session) return null;
-    if (new Date(session.expiresAt).getTime() <= Date.now()) return null;
-    const account = state.accounts[session.accountId];
-    if (!account) return null;
-    return { account, session };
+    const claims = await verifySignedSessionToken(token, this.env);
+    if (claims) {
+      const session = state.sessions[claims.sid];
+      if (!session) return null;
+      if (session.accountId !== claims.sub || session.sessionId !== claims.sid) return null;
+      if (new Date(session.expiresAt).getTime() <= Date.now()) return null;
+      const account = state.accounts[session.accountId];
+      if (!account) return null;
+      return { account, session, storageKey: claims.sid };
+    }
+
+    const legacySession = state.sessions[token];
+    if (!legacySession) return null;
+    if (new Date(legacySession.expiresAt).getTime() <= Date.now()) return null;
+    const legacyAccount = state.accounts[legacySession.accountId];
+    if (!legacyAccount) return null;
+    return { account: legacyAccount, session: legacySession, storageKey: token };
   }
 
   private buildWallet(account: AccountState): Json {
@@ -1191,18 +1355,10 @@ export class MatchCoordinator {
         };
         state.accounts[account.accountId] = account;
       }
-      const token = crypto.randomUUID();
-      const createdAt = nowIso();
-      state.sessions[token] = {
-        sessionId: crypto.randomUUID(),
-        token,
-        accountId: account.accountId,
-        createdAt,
-        lastUsedAt: createdAt,
-        expiresAt: plusDaysIso(30),
-      };
+      const session = await createSessionRecord(account.accountId, this.env);
+      state.sessions[session.sessionId] = session;
       await this.persist(state);
-      return json({ app_token: token, displayName: account.displayName, userId: account.accountId });
+      return json({ app_token: session.token, displayName: account.displayName, userId: account.accountId });
     }
 
     if ((path === "/api/auth/register" || path === "/api/auth/login") && request.method === "POST") {
@@ -1228,23 +1384,14 @@ export class MatchCoordinator {
         state.accounts[account.accountId] = account;
       }
 
-      const createdAt = nowIso();
-      const token = crypto.randomUUID();
-      const session: SessionState = {
-        sessionId: crypto.randomUUID(),
-        token,
-        accountId: account.accountId,
-        createdAt,
-        lastUsedAt: createdAt,
-        expiresAt: plusDaysIso(30),
-      };
-      state.sessions[token] = session;
-      account.updatedAt = createdAt;
+      const session = await createSessionRecord(account.accountId, this.env);
+      state.sessions[session.sessionId] = session;
+      account.updatedAt = session.createdAt;
 
       await this.persist(state);
 
       return json({
-        app_token: token,
+        app_token: session.token,
         token_type: "Bearer",
         account: {
           accountId: account.accountId,
@@ -1267,7 +1414,7 @@ export class MatchCoordinator {
       });
     }
 
-    const authed = this.resolveSession(parseAuthToken(request), state);
+    const authed = await this.resolveSession(parseAuthToken(request), state);
     if (!authed) {
       return error("Unauthorized", 401);
     }
@@ -1308,7 +1455,7 @@ export class MatchCoordinator {
     }
 
     if (path === "/api/auth/logout" && request.method === "POST") {
-      delete state.sessions[authed.session.token];
+      delete state.sessions[authed.storageKey];
       await this.persist(state);
       return json({ ok: true });
     }
