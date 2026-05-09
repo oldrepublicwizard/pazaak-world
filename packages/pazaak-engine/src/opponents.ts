@@ -436,7 +436,7 @@ export const getDefaultPazaakOpponentForAdvisorDifficulty = (
 
   const targetDifficulties = difficultiesForAdvisor[difficulty];
   const pool = pazaakOpponents.filter((opponent) => targetDifficulties.includes(opponent.difficulty));
-  
+
   // Return a random opponent from the pool
   const safePool = pool.length > 0 ? pool : pazaakOpponents;
   return safePool[Math.floor(Math.random() * safePool.length)] ?? pazaakOpponents[0]!;

@@ -20,6 +20,7 @@ import type {
 } from "./types.ts";
 import { initDiscordAuth, closeActivity, isDiscordActivity } from "./discord.ts";
 import { getDefaultLocalOpponentForDifficulty, localOpponents, type LocalOpponentProfile } from "./localOpponents.ts";
+import { validatePassword, validateEmail, validateUsernameUniqueness } from "./utils/validation.ts";
 import {
   addLobbyAi,
   createLobby,
@@ -2183,24 +2184,67 @@ function AuthDialog({
     setError(null);
 
     try {
-      const auth = mode === "login"
-        ? await loginAccount(identifier.trim(), password)
-        : await registerAccount({
+      // Validate inputs based on mode
+      if (mode === "login") {
+        // Login validation
+        if (!identifier.trim()) {
+          throw new Error("Username or email is required");
+        }
+        if (password.length === 0) {
+          throw new Error("Password is required");
+        }
+
+        const auth = await loginAccount(identifier.trim(), password);
+
+        await onAuthenticated({
+          userId: auth.account.legacyGameUserId ?? auth.account.accountId,
+          username: auth.account.displayName,
+          accessToken: auth.app_token,
+        });
+        onClose();
+        setError(null);
+      } else {
+        // Registration validation - import validators at the top
+        const usernameValidation = await validateUsernameUniqueness(username.trim());
+        if (!usernameValidation.valid) {
+          throw new Error(usernameValidation.error || "Username is not available");
+        }
+
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.valid) {
+          throw new Error(
+            passwordValidation.errors[0] ||
+            "Password does not meet requirements"
+          );
+        }
+
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
+
+        if (email && !validateEmail(email).valid) {
+          throw new Error("Invalid email address");
+        }
+
+        const auth = await registerAccount({
           username: username.trim(),
           displayName: displayName.trim() || undefined,
           email: email.trim() || undefined,
           password,
         });
 
-      await onAuthenticated({
-        userId: auth.account.legacyGameUserId ?? auth.account.accountId,
-        username: auth.account.displayName,
-        accessToken: auth.app_token,
-      });
-      onClose();
-      setError(null);
+        await onAuthenticated({
+          userId: auth.account.legacyGameUserId ?? auth.account.accountId,
+          username: auth.account.displayName,
+          accessToken: auth.app_token,
+        });
+        onClose();
+        setError(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("[AuthDialog]", errorMessage);
+      setError(errorMessage);
     } finally {
       setBusy(false);
     }
