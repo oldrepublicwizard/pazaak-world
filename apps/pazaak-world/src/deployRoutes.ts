@@ -12,6 +12,10 @@ function resolvePagesSiteRootFromBasePath(): string {
   if (b && b !== "/") {
     return `${GITHUB_PAGES_ORIGIN}${b}`;
   }
+  if (typeof window !== "undefined") {
+    // Support root-mounted deployments where BASE_URL is '/'.
+    return window.location.origin;
+  }
   return GITHUB_PAGES_SITE_ROOT;
 }
 
