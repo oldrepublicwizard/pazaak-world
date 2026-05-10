@@ -1340,7 +1340,9 @@ export class MatchCoordinator {
       const email = typeof body.email === "string" && body.email.includes("@") ? body.email : null;
       const identityKey = `${provider}:${providerUserId}`;
       // Find existing account by provider identity key stored in accountId prefix or username
-      let account = Object.values(state.accounts).find((a) => a.accountId.startsWith(`${identityKey}:`) || a.email === email);
+      let account = Object.values(state.accounts).find(
+        (a) => a.accountId.startsWith(`${identityKey}:`) || (email !== null && a.email === email),
+      );
       if (!account) {
         const createdAt = nowIso();
         account = {
@@ -1368,7 +1370,9 @@ export class MatchCoordinator {
       const username = toSlug(String(body.username ?? identifier)).slice(0, 32);
       const email = typeof body.email === "string" && body.email.includes("@") ? body.email : null;
 
-      let account = Object.values(state.accounts).find((candidate) => candidate.username === username || candidate.email === email);
+      let account = Object.values(state.accounts).find(
+        (candidate) => candidate.username === username || (email !== null && candidate.email === email),
+      );
       if (!account) {
         const createdAt = nowIso();
         account = {
