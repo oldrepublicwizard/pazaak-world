@@ -449,6 +449,17 @@ const maybeBootstrapNakama = async (session: ActivitySession): Promise<ActivityS
   return bootstrapNakamaActivitySession(session);
 };
 
+const LEGACY_PAZAAK_WORLD_ROUTE_BASES = [
+  "/pazaakworld",
+  "/bots/pazaakworld",
+  "/community-bots/pazaakworld",
+] as const;
+
+const LEGACY_DISCORD_HUB_ROUTE_BASES = [
+  "/bots",
+  "/community-bots/discord",
+] as const;
+
 const normalizePathname = (): string => window.location.pathname.replace(/\/+$/u, "") || "/";
 
 const isPazaakWorldRoute = (): boolean => {
@@ -458,20 +469,21 @@ const isPazaakWorldRoute = (): boolean => {
 
   const pathname = normalizePathname();
   const primary = pazaakWorldRoute();
-  return pathname === primary
-    || pathname.startsWith(`${primary}/`)
-    || pathname === "/pazaakworld"
-    || pathname.startsWith("/pazaakworld/")
-    || pathname === "/bots/pazaakworld"
-    || pathname.startsWith("/bots/pazaakworld/");
+  if (pathname === primary || pathname.startsWith(`${primary}/`)) {
+    return true;
+  }
+
+  return LEGACY_PAZAAK_WORLD_ROUTE_BASES.some((base) => pathname === base || pathname.startsWith(`${base}/`));
 };
 
 const isDiscordBotsHubRoute = (): boolean => {
   const pathname = normalizePathname();
   const hub = discordHubRoute();
-  return pathname === hub || pathname === `${hub}/`
-    || pathname === "/bots"
-    || pathname === "/bots/";
+  if (pathname === hub || pathname === `${hub}/`) {
+    return true;
+  }
+
+  return LEGACY_DISCORD_HUB_ROUTE_BASES.some((base) => pathname === base || pathname === `${base}/`);
 };
 
 export default function App() {
@@ -525,7 +537,7 @@ function readSubpathFromBases(pathname: string, bases: string[]): string {
 }
 
 function pazaakWorldRouteBases(): string[] {
-  return uniqueRouteBases([pazaakWorldRoute(), "/pazaakworld", "/bots/pazaakworld"]);
+  return uniqueRouteBases([pazaakWorldRoute(), ...LEGACY_PAZAAK_WORLD_ROUTE_BASES]);
 }
 
 function createDefaultLocalGameState(auth: ActivitySession): Extract<AppState, { stage: "local_game" }> {
