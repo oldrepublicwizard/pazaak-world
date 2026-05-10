@@ -24,12 +24,12 @@ function trimEnv(value: string | undefined): string {
 }
 
 function pagesDeployRoot(): string {
-  if (import.meta.env.PROD) {
-    const base = import.meta.env.BASE_URL;
-    const pathOnly = base === "/" ? "" : base.replace(/\/$/, "");
+  const base = import.meta.env.BASE_URL ?? "/";
+  const pathOnly = base === "/" ? "" : base.replace(/\/$/, "");
+  if (typeof window !== "undefined") {
     return `${window.location.origin}${pathOnly}/`;
   }
-  return "https://openkotor.github.io/community-bots/";
+  return `https://openkotor.github.io${pathOnly || "/community-bots"}/`;
 }
 
 export function DiscordBotsHub() {
