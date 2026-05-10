@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { operatorConsoleRoute, pazaakWorldRoute, qaWebUiRoute } from "../deployRoutes.ts";
 import "./discordBotsHub.css";
 
 /** Matches `scripts/discord-install-links.ts` permission integers. */
@@ -23,15 +24,6 @@ function trimEnv(value: string | undefined): string {
   return (value ?? "").trim();
 }
 
-function pagesDeployRoot(): string {
-  const base = import.meta.env.BASE_URL ?? "/";
-  const pathOnly = base === "/" ? "" : base.replace(/\/$/, "");
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}${pathOnly}/`;
-  }
-  return `https://openkotor.github.io${pathOnly || "/community-bots"}/`;
-}
-
 export function DiscordBotsHub() {
   useEffect(() => {
     document.title = "OpenKotOR — Discord bots";
@@ -50,11 +42,9 @@ export function DiscordBotsHub() {
   const guide = (path: string) => `${blob(path)}#quick-start`;
   const wikiPage = (slug: string) => `${wikiBase}/${slug.replace(/^\/+/, "")}`;
 
-  const webRoot = pagesDeployRoot();
-  const traskWebUiHref = `${webRoot}qa-webui/`;
-  const pazaakWebUiHref = `${webRoot}pazaakworld`;
-
-  const operatorConsoleHref = webRoot;
+  const traskWebUiHref = qaWebUiRoute();
+  const pazaakWebUiHref = pazaakWorldRoute();
+  const operatorConsoleHref = operatorConsoleRoute();
 
   return (
     <div className="discord-bots-hub">
