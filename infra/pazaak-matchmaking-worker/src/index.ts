@@ -1349,6 +1349,17 @@ export class MatchCoordinator {
       return json(toPublicConfig(resolvePolicy(this.env, state)));
     }
 
+    // Public card-world config: returns feature flags consumed by the frontend to determine
+    // whether chitin.key ownership proof is required for Pazaak features.
+    if (path === "/api/cardworld/config" && request.method === "GET") {
+      return json({
+        botGameType: "pazaak",
+        defaultPublicGameType: "blackjack",
+        pazaakRequiresOwnershipProof: false,
+        acceptedOwnershipProofFilenames: ["chitin.key"],
+      });
+    }
+
     // OAuth providers list is handled by the main Worker (has env access).
     // This route is kept here only as a fallback but should not be reached.
     if (path === "/api/auth/oauth/providers" && request.method === "GET") {
@@ -1487,6 +1498,43 @@ export class MatchCoordinator {
           expiresAt: session.expiresAt,
         },
         linkedIdentities: [],
+      });
+    }
+
+    // Public guest auto-registration: exchanges a local guest ID for a real signed JWT.
+    // The guestId (stored in browser localStorage) serves as the stable account identifier.
+    // Security: guest accounts have no privileged capabilities; spoofing a guest ID only
+    // gives access to another guest's match history and cosmetic settings, not real credentials.
+    if (path === "/api/auth/ensure-guest" && request.method === "POST") {
+      const body = await request.json<Json>().catch(() => ({} as Json));
+      const guestId = typeof body.guestId === "string" ? body.guestId.trim() : "";
+      if (!guestId || !/^guest-[\w-]{8,64}$/.test(guestId)) {
+        return error("Valid guestId is required", 400);
+      }
+      const accountId = `guest:${guestId}`;
+      let account = state.accounts[accountId];
+      if (!account) {
+        const createdAt = nowIso();
+        const slug = toSlug(guestId).slice(0, 32) || "guest";
+        account = {
+          accountId,
+          username: slug,
+          displayName: "Guest Pilot",
+          email: null,
+          createdAt,
+          updatedAt: createdAt,
+          mmr: 1000,
+          mmrRd: 350,
+        };
+        state.accounts[accountId] = account;
+      }
+      const session = await createSessionRecord(accountId, this.env);
+      state.sessions[session.sessionId] = session;
+      await this.persist(state);
+      return json({
+        app_token: session.token,
+        displayName: account.displayName,
+        userId: account.accountId,
       });
     }
 

@@ -862,6 +862,21 @@ export async function loginAccount(identifier: string, password: string): Promis
   }
 }
 
+export async function ensureGuestAccount(guestId: string): Promise<{ appToken: string; displayName: string; userId: string }> {
+  const response = await apiPublicFetch<{ app_token: string; displayName: string; userId: string }>(
+    "/api/auth/ensure-guest",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guestId }),
+    },
+  );
+  if (typeof response.app_token !== "string" || !response.app_token) {
+    throw new Error("Invalid ensure-guest response");
+  }
+  return { appToken: response.app_token, displayName: response.displayName, userId: response.userId };
+}
+
 export async function fetchSocialAuthProviders(): Promise<SocialAuthProviderListResponse> {
   const body = await apiPublicOptionalFetch<SocialAuthProviderListResponse>("/api/auth/oauth/providers");
   return body ?? {

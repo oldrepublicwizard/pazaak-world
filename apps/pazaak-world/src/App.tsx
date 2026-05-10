@@ -24,6 +24,7 @@ import { validatePassword, validateEmail, validateUsernameUniqueness } from "./u
 import {
   addLobbyAi,
   createLobby,
+  ensureGuestAccount,
   fetchCardWorldConfig,
   fetchMatch,
   fetchPublicPazaakConfig,
@@ -447,6 +448,22 @@ const createLocalGuestSession = (): ActivitySession => {
 const maybeBootstrapNakama = async (session: ActivitySession): Promise<ActivitySession> => {
   if (!isNakamaBackend()) return session;
   return bootstrapNakamaActivitySession(session);
+};
+
+// Upgrades a local-only guest session to a real server-backed session so that
+// lobby/matchmaking operations (which require a valid JWT) can succeed.
+// If the server is unreachable or the backend is Nakama, returns the session unchanged.
+const maybeUpgradeGuestSession = async (session: ActivitySession): Promise<ActivitySession> => {
+  if (isNakamaBackend()) return session;
+  if (!session.accessToken.startsWith("local-guest-token:")) return session;
+  const guestId = session.accessToken.slice("local-guest-token:".length);
+  try {
+    const { appToken, displayName, userId } = await ensureGuestAccount(guestId);
+    return { ...session, accessToken: appToken, userId, username: displayName };
+  } catch {
+    // If upgrade fails (e.g. offline), return the original session; API calls will 401 with a visible error.
+    return session;
+  }
 };
 
 const LEGACY_PAZAAK_WORLD_ROUTE_BASES = [
@@ -1240,10 +1257,16 @@ function PazaakWorldApp() {
       <ModeSelectionScreen
         socketState={matchSocketState}
         isPazaakUnlocked={isPazaakUnlocked}
-        onOpenLobbies={() => setState(isPazaakUnlocked ? { stage: "lobby", auth: state.auth } : { stage: "blackjack_game", auth: state.auth })}
-        onQuickMatch={(preferredMaxPlayers) => setState(isPazaakUnlocked
-          ? { stage: "matchmaking", auth: state.auth, preferredMaxPlayers }
-          : { stage: "blackjack_game", auth: state.auth })}
+        onOpenLobbies={async () => {
+          if (!isPazaakUnlocked) { setState({ stage: "blackjack_game", auth: state.auth }); return; }
+          const upgradedAuth = await maybeUpgradeGuestSession(state.auth);
+          setState({ stage: "lobby", auth: upgradedAuth });
+        }}
+        onQuickMatch={async (preferredMaxPlayers) => {
+          if (!isPazaakUnlocked) { setState({ stage: "blackjack_game", auth: state.auth }); return; }
+          const upgradedAuth = await maybeUpgradeGuestSession(state.auth);
+          setState({ stage: "matchmaking", auth: upgradedAuth, preferredMaxPlayers });
+        }}
         onStartLocalGame={(difficulty, opponentId) => setState(isPazaakUnlocked
           ? {
               stage: "local_game",
