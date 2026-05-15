@@ -20,7 +20,7 @@ import type {
 } from "./types.ts";
 import { initDiscordAuth, closeActivity, isDiscordActivity } from "./discord.ts";
 import { getDefaultLocalOpponentForDifficulty, localOpponents, type LocalOpponentProfile } from "./localOpponents.ts";
-import { validatePassword, validateEmail, validateUsernameUniqueness } from "./utils/validation.ts";
+import { validatePassword, validateEmail, validateUsernameForRegistration } from "./utils/validation.ts";
 import {
   addLobbyAi,
   createLobby,
@@ -2434,9 +2434,9 @@ function AuthDialog({
         setError(null);
       } else {
         // Registration validation - import validators at the top
-        const usernameValidation = await validateUsernameUniqueness(username.trim());
+        const usernameValidation = await validateUsernameForRegistration(username.trim());
         if (!usernameValidation.valid) {
-          throw new Error(usernameValidation.error || "Username is not available");
+          throw new Error(usernameValidation.error || "Username is invalid");
         }
 
         const passwordValidation = validatePassword(password);

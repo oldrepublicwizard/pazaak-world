@@ -40,7 +40,15 @@ export function encodeNakamaCredential(session: Session): string {
   return CRED_PREFIX + btoa(payload);
 }
 
-/** Standalone / dev placeholder sessions — not a real HTTP API bearer from login or Discord. */
+/**
+ * Detects **local / dev-only** bearer strings used when there is no OAuth or HTTP API token.
+ *
+ * - `local-guest-token:` — browser guest flows (not a Nakama session JWT).
+ * - `dev-user-` — developer shortcuts; must never be treated as production OAuth tokens.
+ *
+ * Real Discord / HTTP logins use opaque tokens or `nk1.` credentials from {@link encodeNakamaCredential}.
+ * Server routes must continue to treat these prefixes as non-privileged unless explicitly allowed for dev.
+ */
 export function isGuestLikeAccessToken(token: string | null | undefined): boolean {
   if (!token) return false;
   return token.startsWith("local-guest-token:") || token.startsWith("dev-user-");

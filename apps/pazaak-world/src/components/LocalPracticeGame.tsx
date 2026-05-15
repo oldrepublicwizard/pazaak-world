@@ -12,6 +12,7 @@ import {
   setStoredMusicEnabled,
   startAmbientMusic,
 } from "../utils/ambientAudio.ts";
+import { getLocalPracticeSfxEnabled, setLocalPracticeSfxEnabled } from "../utils/soundUserPrefs.ts";
 
 type LocalCardType = "plus" | "minus" | "flex" | "flip" | "copy" | "tiebreaker" | "valueChange";
 
@@ -61,7 +62,6 @@ const TARGET_SCORE = 20;
 const MAX_BOARD = 9;
 const SETS_TO_WIN_LOCAL = 3;
 const LOCAL_STATS_KEY = "pazaak-world-local-practice-stats-v1";
-const LOCAL_SOUND_KEY = "pazaak-world-sound-enabled-v1";
 
 const pickLocalStarter = (): "human" | "ai" => Math.random() > 0.5 ? "human" : "ai";
 
@@ -104,18 +104,6 @@ function playLocalTone(type: LocalToneType): void {
   oscillator.start(ctx.currentTime);
   oscillator.stop(ctx.currentTime + params.duration + 0.02);
   oscillator.onended = () => { void ctx.close(); };
-}
-
-function getStoredSoundEnabled(): boolean {
-  try {
-    const raw = window.localStorage.getItem(LOCAL_SOUND_KEY);
-    if (raw === null) return true; // on by default in local practice
-    return raw === "true";
-  } catch { return true; }
-}
-
-function setStoredSoundEnabled(value: boolean): void {
-  try { window.localStorage.setItem(LOCAL_SOUND_KEY, value ? "true" : "false"); } catch { /* ignore */ }
 }
 
 type LocalGamePhase = "playing" | "round_end" | "game_end";
@@ -376,7 +364,7 @@ export function LocalPracticeGame({ username, difficulty, opponentId, onExit }: 
     chosen: opponentProfile.phrases.chosen[0] ?? "...",
   }));
   const [stats, setStats] = useState<LocalPracticeStats>(() => loadStats());
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => getStoredSoundEnabled());
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => getLocalPracticeSfxEnabled());
   const [musicEnabled, setMusicEnabled] = useState<boolean>(() => getStoredMusicEnabled());
   const stopMusicRef = useRef<(() => void) | null>(null);
   const continueButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -941,7 +929,7 @@ export function LocalPracticeGame({ username, difficulty, opponentId, onExit }: 
           event.preventDefault();
           const next = !soundEnabled;
           setSoundEnabled(next);
-          setStoredSoundEnabled(next);
+          setLocalPracticeSfxEnabled(next);
           break;
         }
         case "n": {
@@ -1013,7 +1001,7 @@ export function LocalPracticeGame({ username, difficulty, opponentId, onExit }: 
           <div className="local-game__topbar-controls" role="toolbar" aria-label="Local practice controls">
             <button
               className="btn btn--ghost btn--sm"
-              onClick={() => { const next = !soundEnabled; setSoundEnabled(next); setStoredSoundEnabled(next); }}
+              onClick={() => { const next = !soundEnabled; setSoundEnabled(next); setLocalPracticeSfxEnabled(next); }}
               title={soundEnabled ? "Mute sounds" : "Enable sounds"}
               aria-pressed={soundEnabled}
               aria-label={soundEnabled ? "Mute sounds" : "Enable sounds"}

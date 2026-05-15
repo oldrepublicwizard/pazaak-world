@@ -397,9 +397,14 @@ export function validateNumber(
   };
 }
 
-/** Check username uniqueness (requires API call) - stubbed with simple validation for now */
-export async function validateUsernameUniqueness(username: string): Promise<UsernameUniquenessResult> {
-  // Basic local validation first
+/**
+ * Registration-time username checks that can run **before** `registerAccount`.
+ *
+ * **Collision / uniqueness** is enforced server-side when `registerAccount` runs;
+ * this helper only validates local format rules so the user gets fast feedback.
+ * Do not treat `valid: true` as “username is globally available.”
+ */
+export async function validateUsernameForRegistration(username: string): Promise<UsernameUniquenessResult> {
   const localValidation = validateUsername(username);
   if (!localValidation.valid) {
     return {
@@ -408,8 +413,6 @@ export async function validateUsernameUniqueness(username: string): Promise<User
     };
   }
 
-  // In a full implementation, this would call the API to check if the username is taken
-  // For now, return success - the registration API will validate uniqueness
   return {
     valid: true,
   };

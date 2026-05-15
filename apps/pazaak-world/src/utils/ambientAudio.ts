@@ -10,24 +10,16 @@
  *   stopMusic();                             // fades out and closes ctx
  */
 
+import { getAmbientMusicEnabled, setAmbientMusicEnabled } from "./soundUserPrefs.ts";
+
 type StopFn = () => void;
 
-const MUSIC_STORAGE_KEY = "pazaak-world-music-enabled-v1";
-
 export function getStoredMusicEnabled(): boolean {
-  try {
-    const raw = window.localStorage.getItem(MUSIC_STORAGE_KEY);
-    if (raw === null) return false;
-    return raw === "true";
-  } catch {
-    return false;
-  }
+  return getAmbientMusicEnabled();
 }
 
 export function setStoredMusicEnabled(value: boolean): void {
-  try {
-    window.localStorage.setItem(MUSIC_STORAGE_KEY, value ? "true" : "false");
-  } catch { /* storage unavailable */ }
+  setAmbientMusicEnabled(value);
 }
 
 export function startAmbientMusic(volume = 0.055): StopFn {

@@ -1,6 +1,20 @@
 /**
- * Simple sound manager for Pazaak World
+ * Global sound effects for Pazaak World (Web Audio API).
+ *
+ * Scheduling uses {@link AudioContext} clock time — not main-thread `setTimeout` alone —
+ * for multi-hit SFX so timing survives modest UI thread jitter.
+ *
+ * Ambient cantina music lives in {@link ./ambientAudio.ts} (separate graph + teardown).
  */
+
+import type { SfxBeepEvent } from "@openkotor/platform/sfx-timeline";
+import {
+  bustBeepEvents,
+  roundLossBeepEvents,
+  roundWinBeepEvents,
+  victoryBeepEvents,
+} from "@openkotor/platform/sfx-timeline";
+import { loadSoundPrefs, patchSoundPrefs } from "./soundUserPrefs.ts";
 
 interface SoundConfig {
   enabled: boolean;
@@ -14,6 +28,20 @@ interface AudioWindow extends Window {
   webkitAudioContext?: AudioContextConstructor;
 }
 
+type BeepType = SfxBeepEvent["kind"];
+
+function frequencyForBeep(type: BeepType): number {
+  switch (type) {
+    case "success":
+      return 1200;
+    case "error":
+      return 400;
+    case "warning":
+    default:
+      return 800;
+  }
+}
+
 class SoundManager {
   private config: SoundConfig = {
     enabled: true,
@@ -21,159 +49,96 @@ class SoundManager {
     effectsVolume: 0.7,
   };
 
-  private backgroundMusic: HTMLAudioElement | null = null;
   private audioContext: AudioContext | null = null;
 
   constructor() {
     this.loadConfig();
   }
 
-  private isSoundConfig(value: unknown): value is SoundConfig {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      return false;
-    }
-    const o = value as Record<string, unknown>;
-    return (
-      typeof o.enabled === "boolean"
-      && typeof o.musicVolume === "number"
-      && Number.isFinite(o.musicVolume)
-      && typeof o.effectsVolume === "number"
-      && Number.isFinite(o.effectsVolume)
-    );
-  }
-
   private loadConfig() {
-    try {
-      const stored = window.localStorage.getItem("pazaak-sound-config");
-      if (stored) {
-        const parsed: unknown = JSON.parse(stored);
-        if (this.isSoundConfig(parsed)) {
-          this.config = parsed;
-        }
-      }
-    } catch {
-      // Use defaults
-    }
+    const prefs = loadSoundPrefs();
+    this.config = {
+      enabled: prefs.globalSoundEnabled,
+      musicVolume: prefs.musicVolume,
+      effectsVolume: prefs.effectsVolume,
+    };
   }
 
-  private saveConfig() {
-    try {
-      window.localStorage.setItem("pazaak-sound-config", JSON.stringify(this.config));
-    } catch {
-      // Ignore storage failures
+  private getAudioContextCtor(): AudioContextConstructor | null {
+    return window.AudioContext ?? (window as AudioWindow).webkitAudioContext ?? null;
+  }
+
+  /** Lazily create (or recreate) the shared context after teardown. */
+  private ensureContext(): AudioContext | null {
+    if (this.audioContext?.state === "closed") {
+      this.audioContext = null;
     }
+    if (this.audioContext) {
+      return this.audioContext;
+    }
+    const Ctor = this.getAudioContextCtor();
+    if (!Ctor) return null;
+    try {
+      this.audioContext = new Ctor();
+    } catch {
+      return null;
+    }
+    return this.audioContext;
   }
 
   /**
-   * Play a beep sound effect
-   * @param frequency Frequency in Hz (default: 800)
-   * @param duration Duration in ms (default: 200)
-   * @param type "success" | "error" | "warning"
+   * Schedule one beep envelope starting at `when` on the audio timeline (seconds).
    */
-  beep(type: "success" | "error" | "warning" = "warning", duration = 200) {
+  private scheduleBeepAt(ctx: AudioContext, when: number, type: BeepType, durationMs: number) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = frequencyForBeep(type);
+    const dur = durationMs / 1000;
+    const peak = this.config.effectsVolume * 0.8;
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(peak, when + 0.01);
+    gain.gain.linearRampToValueAtTime(0, when + dur);
+    osc.start(when);
+    osc.stop(when + dur);
+  }
+
+  /**
+   * Play a beep sound effect.
+   * @param type success | error | warning (controls pitch)
+   * @param duration duration in ms
+   */
+  beep(type: BeepType = "warning", duration = 200) {
     if (!this.config.enabled) return;
-
-    try {
-      // Initialize audio context if needed
-      if (!this.audioContext) {
-        const Ctor = window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
-        if (!Ctor) {
-          return;
-        }
-        this.audioContext = new Ctor();
-      }
-
-      const ctx = this.audioContext;
-      const now = ctx.currentTime;
-
-      // Create oscillator
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      // Set frequency based on type
-      switch (type) {
-        case "success":
-          osc.frequency.value = 1200; // High beep
-          break;
-        case "error":
-          osc.frequency.value = 400; // Low beep
-          break;
-        case "warning":
-          osc.frequency.value = 800; // Medium beep
-          break;
-      }
-
-      // Fade in/out to avoid clicks
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(this.config.effectsVolume * 0.8, now + 0.01);
-      gain.gain.linearRampToValueAtTime(0, now + (duration / 1000));
-
-      osc.start(now);
-      osc.stop(now + (duration / 1000));
-    } catch {
-      // Audio context not available, silently fail
-    }
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    void ctx.resume().catch(() => {});
+    this.scheduleBeepAt(ctx, ctx.currentTime, type, duration);
   }
 
   /**
-   * Start background music (ambient pazaak theme)
+   * Schedule multiple beeps on the audio clock (offsets in seconds from `anchorTime`).
    */
-  startBackgroundMusic() {
-    if (!this.config.enabled) return;
-
-    if (this.backgroundMusic) {
-      this.backgroundMusic.play().catch(() => {
-        // Autoplay may be blocked
-      });
-      return;
-    }
-
-    try {
-      // Create a simple ambient tone using Web Audio API
-      const Ctor = window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
-      if (!this.audioContext && !Ctor) {
-        return;
-      }
-
-      const audioContext = this.audioContext || new Ctor();
-      if (!this.audioContext) {
-        this.audioContext = audioContext;
-      }
-
-      const now = audioContext.currentTime;
-      const duration = 16; // Loop duration in seconds
-
-      // Create multiple oscillators for ambient effect
-      const frequencies = [110, 165, 220]; // A2, E3, A3
-      const gains = frequencies.map(() => audioContext.createGain());
-
-      frequencies.forEach((freq, i) => {
-        const osc = audioContext.createOscillator();
-        osc.type = "sine";
-        osc.frequency.value = freq;
-
-        osc.connect(gains[i]);
-        gains[i].gain.setValueAtTime(this.config.musicVolume * 0.2, now);
-        gains[i].connect(audioContext.destination);
-
-        osc.start();
-      });
-    } catch {
-      // Audio context not available, silently fail
+  private scheduleBeepSequence(
+    events: readonly { offsetSec: number; type: BeepType; durationMs: number }[],
+    anchorTime?: number,
+  ) {
+    if (!this.config.enabled || events.length === 0) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    void ctx.resume().catch(() => {});
+    const t0 = anchorTime ?? ctx.currentTime;
+    for (const ev of events) {
+      this.scheduleBeepAt(ctx, t0 + ev.offsetSec, ev.type, ev.durationMs);
     }
   }
 
-  /**
-   * Stop background music
-   */
-  stopBackgroundMusic() {
-    if (this.backgroundMusic) {
-      this.backgroundMusic.pause();
-      this.backgroundMusic = null;
-    }
+  private scheduleFromTimeline(events: readonly SfxBeepEvent[], anchorTime?: number) {
+    this.scheduleBeepSequence(
+      events.map((e) => ({ offsetSec: e.offsetSec, type: e.kind, durationMs: e.durationMs })),
+      anchorTime,
+    );
   }
 
   /**
@@ -201,28 +166,26 @@ class SoundManager {
    * Play a round win sound
    */
   playRoundWinSound() {
-    // Two ascending beeps
-    this.beep("success", 150);
-    setTimeout(() => this.beep("success", 150), 200);
+    this.scheduleFromTimeline(roundWinBeepEvents());
   }
 
   /**
    * Play a round loss sound
    */
   playRoundLossSound() {
-    // Two descending beeps
-    this.beep("error", 200);
-    setTimeout(() => this.beep("error", 150), 150);
+    this.scheduleFromTimeline(roundLossBeepEvents());
   }
 
   /**
    * Play a bust/bust sound
    */
   playBustSound() {
-    // Three descending beeps
-    this.beep("error", 150);
-    setTimeout(() => this.beep("error", 130), 100);
-    setTimeout(() => this.beep("error", 100), 200);
+    this.scheduleFromTimeline(bustBeepEvents());
+  }
+
+  /** Two ascending pairs spaced like the legacy `setTimeout(..., 300)` victory cue. */
+  playVictorySound() {
+    this.scheduleFromTimeline(victoryBeepEvents());
   }
 
   /**
@@ -234,20 +197,22 @@ class SoundManager {
 
   setEnabled(enabled: boolean) {
     this.config.enabled = enabled;
-    this.saveConfig();
+    patchSoundPrefs({ globalSoundEnabled: enabled });
     if (!enabled) {
-      this.stopBackgroundMusic();
+      const ctx = this.audioContext;
+      this.audioContext = null;
+      void ctx?.close().catch(() => {});
     }
   }
 
   setMusicVolume(volume: number) {
     this.config.musicVolume = Math.max(0, Math.min(1, volume));
-    this.saveConfig();
+    patchSoundPrefs({ musicVolume: this.config.musicVolume });
   }
 
   setEffectsVolume(volume: number) {
     this.config.effectsVolume = Math.max(0, Math.min(1, volume));
-    this.saveConfig();
+    patchSoundPrefs({ effectsVolume: this.config.effectsVolume });
   }
 
   getConfig() {
@@ -262,7 +227,4 @@ export const soundManager = new SoundManager();
 export const playDrawSound = () => soundManager.playDrawSound();
 export const playPositiveSound = () => soundManager.playRoundWinSound();
 export const playNegativeSound = () => soundManager.playRoundLossSound();
-export const playVictorySound = () => {
-  soundManager.playRoundWinSound();
-  setTimeout(() => soundManager.playRoundWinSound(), 300);
-};
+export const playVictorySound = () => soundManager.playVictorySound();
