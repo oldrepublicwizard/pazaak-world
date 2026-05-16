@@ -39,5 +39,10 @@
     "@types/node": "^24.12.3",
     "tsx": "^4.20.6",
     "typescript": "~6.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "^1.16.1"
+    }
   }
 }
