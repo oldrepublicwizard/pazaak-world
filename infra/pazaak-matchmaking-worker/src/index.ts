@@ -1076,7 +1076,7 @@ export class PazaakRelayRoom {
     server.addEventListener("close", () => this.handleClose(server));
     server.addEventListener("error", () => this.handleClose(server));
 
-    return new Response(null, { status: 101, webSocket: client } as ResponseInit & { webSocket: WebSocket };
+    return new Response(null, { status: 101, webSocket: client } as ResponseInit & { webSocket: WebSocket });
   }
 
   private async handleMessage(ws: WebSocket, raw: string): Promise<void> {
