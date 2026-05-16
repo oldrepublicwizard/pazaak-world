@@ -35,15 +35,15 @@ jobs:
             echo "::notice::Skipping Vercel — set VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID (from \`vercel link\` .vercel/project.json)."
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.chk.outputs.go == 'true'
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.chk.outputs.go == 'true'
         with:
           version: 10.11.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: steps.chk.outputs.go == 'true'
         with:
           node-version: 24
