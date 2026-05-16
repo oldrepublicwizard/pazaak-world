@@ -33,7 +33,7 @@ import {
   type RivalryRecord,
 } from "@openkotor/persistence";
 import { personaProfiles } from "@openkotor/personas";
-import { createDefaultSearchProvider } from "@openkotor/retrieval";
+import { createChunkSearchProvider } from "@openkotor/retrieval";
 import { createResearchWizardClient } from "@openkotor/trask";
 import { normalizeCardGameType } from "@openkotor/platform";
 
@@ -96,8 +96,12 @@ const matchmakingQueueRepository = new JsonPazaakMatchmakingQueueRepository(reso
 const lobbyRepository = new JsonPazaakLobbyRepository(resolveDataFile(config.dataDir, "lobbies.json"));
 const matchHistoryRepository = new JsonPazaakMatchHistoryRepository(resolveDataFile(config.dataDir, "match-history.json"));
 const traskQueryRepository = new JsonTraskQueryRepository(resolveDataFile(config.dataDir, "trask-queries.json"));
-const traskSearchProvider = createDefaultSearchProvider({ stateDir: process.env.INGEST_STATE_DIR?.trim() || "data/ingest-worker" });
-const traskResearchWizard = createResearchWizardClient(loadResearchWizardRuntimeConfig(), loadSharedAiConfig());
+const traskSearchProvider = createChunkSearchProvider(process.env.INGEST_STATE_DIR?.trim() || "data/ingest-worker");
+const traskResearchWizard = createResearchWizardClient(
+  loadResearchWizardRuntimeConfig(),
+  loadSharedAiConfig(),
+  traskSearchProvider,
+);
 const cardWorldBotGameType = normalizeCardGameType(process.env.CARDWORLD_BOT_GAME_TYPE?.trim(), "pazaak");
 const pazaakRequiresOwnershipProof = (process.env.CARDWORLD_REQUIRE_CHITIN_KEY?.trim() ?? "1") !== "0";
 const workerSyncUrl = process.env.PAZAAK_WORKER_SYNC_URL?.trim();

@@ -227,6 +227,13 @@ export interface TraskProactiveConfig {
   maxReplyChars: number;
 }
 
+export interface TraskWelcomeConfig {
+  /** Channel ID where Trask posts a one-shot welcome for joining members. */
+  channelId: string;
+  /** Welcome template supporting $mention, $user, and $server placeholders. */
+  message: string;
+}
+
 export interface TraskBotConfig {
   discord: DiscordRuntimeConfig;
   ai: SharedAiConfig;
@@ -255,6 +262,7 @@ export interface TraskBotConfig {
    */
   holocronPublicUrl: string | undefined;
   proactive: TraskProactiveConfig;
+  welcome?: TraskWelcomeConfig;
 }
 
 export interface HkBotConfig {
@@ -360,6 +368,14 @@ export const loadSharedAiConfig = (env: NodeJS.ProcessEnv = process.env): Shared
 export const loadTraskBotConfig = (env: NodeJS.ProcessEnv = process.env): TraskBotConfig => {
   const proactiveChannelIds = readListEnv("TRASK_PROACTIVE_CHANNEL_IDS", env);
   const approvedChannelIds = readListEnv("TRASK_APPROVED_CHANNEL_IDS", env);
+  const welcomeChannelId = readOptionalEnv("TRASK_WELCOME_CHANNEL_ID", env);
+  const welcomeMessage = readOptionalEnv("TRASK_WELCOME_MESSAGE", env);
+  const welcome = welcomeChannelId && welcomeMessage
+    ? {
+        channelId: welcomeChannelId,
+        message: welcomeMessage,
+      }
+    : undefined;
 
   return {
     discord: loadDiscordRuntimeConfig("TRASK", env),
@@ -392,6 +408,7 @@ export const loadTraskBotConfig = (env: NodeJS.ProcessEnv = process.env): TraskB
       maxMessageLength: integerish.parse(readOptionalEnv("TRASK_PROACTIVE_MAX_MESSAGE_LENGTH", env) ?? "400"),
       maxReplyChars: integerish.parse(readOptionalEnv("TRASK_PROACTIVE_MAX_REPLY_CHARS", env) ?? "650"),
     },
+    ...(welcome ? { welcome } : {}),
   };
 };
 
