@@ -142,6 +142,10 @@ const STATIC_PAZAAK_PAGES_PATH_PREFIXES = [
 
 const isStaticPagesApiBase = (rawBase: string): boolean => {
   if (!rawBase) {
+    // Empty primary = no configured API (common on GitHub Pages builds without PAZAAK_API_BASES).
+    if (typeof window !== "undefined" && window.location.hostname.endsWith(".github.io")) {
+      return true;
+    }
     return false;
   }
   try {
@@ -156,7 +160,8 @@ const isStaticPagesApiBase = (rawBase: string): boolean => {
   }
 };
 
-const shouldUseRealtimeWebSocket = !isStaticPagesApiBase(primaryApiBase);
+const shouldUseRealtimeWebSocket =
+  apiClient.apiBases.some((base) => base.trim().length > 0) && !isStaticPagesApiBase(primaryApiBase);
 
 /** First non-empty configured API origin (Worker/bot), for dashboards and probes — not static Pages host. */
 export function getPrimaryBrowserApiOrigin(): string {

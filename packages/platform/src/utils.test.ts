@@ -419,6 +419,22 @@ test("resolveBrowserApiBases injects local API port for localhost", () => {
   assert.ok(result.some((b) => b.includes("4001")));
 });
 
+test("resolveBrowserApiBases returns no bases on GitHub Pages without configuredBases", () => {
+  const result = resolveBrowserApiBases({
+    location: { protocol: "https:", hostname: "oldrepublicwizard.github.io", port: "" },
+    configuredBases: undefined,
+  });
+  assert.deepEqual(result, []);
+});
+
+test("resolveBrowserApiBases still honors configuredBases on GitHub Pages", () => {
+  const result = resolveBrowserApiBases({
+    location: { protocol: "https:", hostname: "oldrepublicwizard.github.io", port: "" },
+    configuredBases: ["https://api.example.com"],
+  });
+  assert.deepEqual(result, ["https://api.example.com"]);
+});
+
 // ---------------------------------------------------------------------------
 // buildBrowserCorsAllowedOrigins and resolveCorsHeaders (cors.ts)
 // ---------------------------------------------------------------------------

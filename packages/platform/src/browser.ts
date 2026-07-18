@@ -50,6 +50,13 @@ export const resolveBrowserApiBases = (options: {
     return [`${location.protocol}//${location.hostname}:${apiPort}`, ""];
   }
 
+  // GitHub Pages (and similar static hosts) have no /api reverse proxy.
+  // Same-origin "" would hit https://<user>.github.io/api/* (404 HTML) and look "online".
+  // Require explicit VITE_API_BASES / configuredBases for multiplayer backends.
+  if (location.hostname.endsWith(".github.io")) {
+    return [];
+  }
+
   return [""];
 };
 
@@ -88,6 +95,13 @@ export const createBrowserApiClient = (options: BrowserApiClientOptions): Browse
   };
 
   const fetchWithFailover = async (path: string, init?: RequestInit): Promise<Response> => {
+    if (apiBases.length === 0) {
+      return new Response(JSON.stringify({ error: `No API base configured for ${path}` }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     let lastResponse: Response | null = null;
     let lastError: Error | null = null;
 
