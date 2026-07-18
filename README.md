@@ -3,6 +3,7 @@
 Standalone Discord + browser multiplayer Pazaak for Holowan Underlabs.
 
 - **Repo:** https://github.com/oldrepublicwizard/pazaak-world  
+- **Live play:** https://oldrepublicwizard.github.io/pazaak-world/
 - **Portal product name:** Holowan Multiplayer Pazaak  
 - **App / crumb name:** Pazaak World  
 
