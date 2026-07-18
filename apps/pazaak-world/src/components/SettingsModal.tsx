@@ -538,11 +538,11 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave, cardWo
           <h3 className="settings-section-title">📜 CardWorld Access</h3>
           {cw.isPazaakUnlocked ? (
             <p className="settings-section-desc">
-              Pazaak unlocked{cw.ownershipProof ? ` via ${cw.ownershipProof.filename}` : ""}. You can queue, join lobbies, and challenge AI opponents.
+              Online Match / Lobby unlocked{cw.ownershipProof ? ` via ${cw.ownershipProof.filename}` : ""}. Local AI Pazaak stays available for everyone.
             </p>
           ) : (
             <p className="settings-section-desc">
-              Upload chitin.key to unlock Pazaak. Until then, local blackjack is available as the default card mode.
+              Local AI Pazaak is open without a proof file. Upload chitin.key to unlock online Match / Lobby when connected to a live API.
             </p>
           )}
           <div className="settings-cardworld-actions" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
@@ -561,7 +561,7 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave, cardWo
                     }
                     try {
                       cw.onUploadOwnershipProof(file);
-                      setCardWorldUploadMessage(`Accepted ${file.name}. Pazaak unlocked.`);
+                      setCardWorldUploadMessage(`Accepted ${file.name}. Online Match / Lobby unlocked.`);
                     } catch (error) {
                       setCardWorldUploadMessage(error instanceof Error ? error.message : String(error));
                     } finally {

@@ -77,6 +77,7 @@ import { soundManager } from "./utils/soundManager.ts";
 import { ConnectionStatus } from "./components/ConnectionStatus.tsx";
 import { subscribeToActivityRelay, type ActivityRelayConnectionState, type ActivityRelayMember } from "./activityRelay.ts";
 import type { CardWorldConfig } from "@pazaak/platform";
+import { isPazaakAccessAllowed } from "@pazaak/platform";
 import { pazaakWorldRoute } from "./deployRoutes.ts";
 import { isGuestLikeAccessToken, nakamaGuestUsername } from "./nakamaClient.ts";
 
@@ -650,17 +651,27 @@ function PazaakWorldApp() {
   const [cardWorldConfig, setCardWorldConfig] = useState<CardWorldConfig>(DEFAULT_CARDWORLD_CONFIG);
   const [ownershipProof, setOwnershipProof] = useState<OwnershipProofRecord | null>(loadOwnershipProof);
 
-  const isPazaakUnlocked = useMemo(() => {
-    if (!cardWorldConfig.pazaakRequiresOwnershipProof) {
-      return true;
-    }
-
-    if (isDiscordActivity()) {
-      return true;
-    }
-
-    return Boolean(ownershipProof);
+  const isOnlinePazaakUnlocked = useMemo(() => {
+    return isPazaakAccessAllowed({
+      surface: "online",
+      requiresOwnershipProof: cardWorldConfig.pazaakRequiresOwnershipProof,
+      isDiscordActivity: isDiscordActivity(),
+      hasOwnershipProof: Boolean(ownershipProof),
+    });
   }, [cardWorldConfig.pazaakRequiresOwnershipProof, ownershipProof]);
+
+  /** Guest local AI is always open (Holowan Pages marketing playable slice). */
+  const isLocalPazaakUnlocked = useMemo(() => {
+    return isPazaakAccessAllowed({
+      surface: "local_ai",
+      requiresOwnershipProof: cardWorldConfig.pazaakRequiresOwnershipProof,
+      isDiscordActivity: isDiscordActivity(),
+      hasOwnershipProof: Boolean(ownershipProof),
+    });
+  }, [cardWorldConfig.pazaakRequiresOwnershipProof, ownershipProof]);
+
+  /** @deprecated alias — online multiplayer unlock (chitin.key). Prefer isOnlinePazaakUnlocked. */
+  const isPazaakUnlocked = isOnlinePazaakUnlocked;
 
   const shouldRequireOnboarding = useCallback(() => {
     return !isDiscordActivity() && !onboardingState.completed;
@@ -1222,7 +1233,7 @@ function PazaakWorldApp() {
           const upgradedAuth = await maybeUpgradeGuestSession(state.auth);
           setState({ stage: "matchmaking", auth: upgradedAuth, preferredMaxPlayers });
         }}
-        onStartLocalGame={(difficulty, opponentId) => setState(isPazaakUnlocked
+        onStartLocalGame={(difficulty, opponentId) => setState(isLocalPazaakUnlocked
           ? {
               stage: "local_game",
               auth: state.auth,
@@ -1256,7 +1267,7 @@ function PazaakWorldApp() {
         onOpenWorkshop={() => setState({ stage: "workshop", auth: state.auth, returnTo: "lobby" })}
         onEnterMatch={(match) => setState({ stage: "game", auth: state.auth, match })}
         onStartLocalGame={(difficulty, opponentId) => setState({
-          ...(isPazaakUnlocked
+          ...(isLocalPazaakUnlocked
             ? {
                 stage: "local_game" as const,
                 auth: state.auth,
@@ -1621,7 +1632,8 @@ function ModeSelectionScreen({
             className="pazaak-world-card__notice"
             style={{ textAlign: "center", margin: "0 auto 1rem", maxWidth: "36rem" }}
           >
-            Upload <code>chitin.key</code> or open blackjack practice from <strong>Settings</strong> (⚙) → CardWorld Access.
+            Local AI Pazaak is open for guests. Upload <code>chitin.key</code> in{" "}
+            <strong>Settings</strong> (⚙) → CardWorld Access to unlock online Match / Lobby when a server is connected.
           </p>
         ) : null}
 

@@ -4,8 +4,73 @@ import assert from "node:assert/strict";
 import { trimTrailingSlashes, normalizeOrigin, isLocalhostUrl, isWebSocketUpgradeHeader } from "./index.js";
 import { extractBearerToken, requireBearerToken } from "./bearer-tokens.js";
 import { isCardGameType, normalizeCardGameType } from "./game-mode.js";
+import { isPazaakAccessAllowed } from "./pazaak-access.js";
 import { normalizeAuthHandlerError } from "./auth.js";
 import { buildLocalWebOrigins } from "./cors.js";
+
+// ---------------------------------------------------------------------------
+// isPazaakAccessAllowed (Holowan guest local AI vs online ownership gate)
+// ---------------------------------------------------------------------------
+
+test("isPazaakAccessAllowed always allows local_ai", () => {
+  assert.equal(
+    isPazaakAccessAllowed({
+      surface: "local_ai",
+      requiresOwnershipProof: true,
+      isDiscordActivity: false,
+      hasOwnershipProof: false,
+    }),
+    true,
+  );
+});
+
+test("isPazaakAccessAllowed blocks online without ownership when required", () => {
+  assert.equal(
+    isPazaakAccessAllowed({
+      surface: "online",
+      requiresOwnershipProof: true,
+      isDiscordActivity: false,
+      hasOwnershipProof: false,
+    }),
+    false,
+  );
+});
+
+test("isPazaakAccessAllowed allows online with ownership proof", () => {
+  assert.equal(
+    isPazaakAccessAllowed({
+      surface: "online",
+      requiresOwnershipProof: true,
+      isDiscordActivity: false,
+      hasOwnershipProof: true,
+    }),
+    true,
+  );
+});
+
+test("isPazaakAccessAllowed allows online in Discord Activity without proof", () => {
+  assert.equal(
+    isPazaakAccessAllowed({
+      surface: "online",
+      requiresOwnershipProof: true,
+      isDiscordActivity: true,
+      hasOwnershipProof: false,
+    }),
+    true,
+  );
+});
+
+test("isPazaakAccessAllowed allows online when ownership is not required", () => {
+  assert.equal(
+    isPazaakAccessAllowed({
+      surface: "online",
+      requiresOwnershipProof: false,
+      isDiscordActivity: false,
+      hasOwnershipProof: false,
+    }),
+    true,
+  );
+});
 
 // ---------------------------------------------------------------------------
 // trimTrailingSlashes

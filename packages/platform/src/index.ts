@@ -43,6 +43,12 @@ export {
   type UntrustedCardGameTypeInput,
 } from "./game-mode.js";
 export {
+  isPazaakAccessAllowed,
+  isPazaakAccessAllowedFromConfig,
+  type PazaakAccessOptions,
+  type PazaakAccessSurface,
+} from "./pazaak-access.js";
+export {
   createNodeApiHost,
   type NodeApiHost,
   type NodeApiHostOptions,
