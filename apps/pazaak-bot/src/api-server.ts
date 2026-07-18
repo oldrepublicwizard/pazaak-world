@@ -131,7 +131,7 @@ type ScalarOrObject = JsonValue | object;
 
 const DISCORD_API = DISCORD_API_V10;
 const APP_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
-const DEFAULT_PUBLIC_WEB_URL = "https://openkotor.github.io/community-bots/pazaakworld";
+const DEFAULT_PUBLIC_WEB_URL = "https://oldrepublicwizard.github.io/pazaak-world/";
 const envLookup = createObjectEnvLookup(process.env);
 const oauthConfigOptions = {
   envMap: PAZAAK_SOCIAL_AUTH_PROVIDER_ENV_MAP,

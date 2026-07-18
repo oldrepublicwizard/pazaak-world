@@ -201,7 +201,7 @@ const DEFAULT_SETTINGS = {
   preferredAiDifficulty: "normal",
 };
 
-const SESSION_JWT_ISSUER = "openkotor-pazaak";
+const SESSION_JWT_ISSUER = "pazaak-world";
 const SESSION_JWT_AUDIENCE = "pazaak-world";
 const SESSION_TOKEN_VERSION = 1;
 const MIN_SIGNING_SECRET_LENGTH = 32;
@@ -437,7 +437,7 @@ function resolveSessionSigningSecret(env: Env): string {
     }
   }
   if (env.ALLOW_UNVERIFIED_INSTANCES === "1") {
-    return `${env.SERVICE_NAME?.trim() || "openkotor-pazaak"}-dev-session-secret`;
+    return `${env.SERVICE_NAME?.trim() || "pazaak-world"}-dev-session-secret`;
   }
   throw new Error("Missing session signing secret. Set PAZAAK_SESSION_JWT_SECRET or SESSION_JWT_SECRET.");
 }

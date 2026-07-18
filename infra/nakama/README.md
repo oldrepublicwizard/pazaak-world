@@ -65,6 +65,6 @@ VITE_NAKAMA_HOST=127.0.0.1
 VITE_NAKAMA_PORT=7350
 VITE_NAKAMA_USE_SSL=false
 VITE_NAKAMA_SERVER_KEY=defaultkey
-# Optional: Trask + legacy OAuth still hit the bot HTTP API:
+# Optional: legacy OAuth still hits the bot HTTP API:
 # VITE_LEGACY_HTTP_ORIGIN=http://localhost:4001
 ```

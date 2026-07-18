@@ -9,7 +9,7 @@
  * @see docs/solutions/sound-architecture-pazaak-world.md
  */
 
-const CANONICAL_KEY = "openkotor-pazaak-world-sound-v2";
+const CANONICAL_KEY = "pazaak-world-sound-v2";
 const LEGACY_SOUND_CONFIG = "pazaak-sound-config";
 const LEGACY_MUSIC = "pazaak-world-music-enabled-v1";
 const LEGACY_LOCAL_SFX = "pazaak-world-sound-enabled-v1";

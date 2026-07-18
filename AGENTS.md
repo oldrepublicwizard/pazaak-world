@@ -16,7 +16,7 @@ This monorepo is **Pazaak only**. Do not reintroduce Trask/HK hub routes or `/ap
 pnpm install
 pnpm build
 pnpm --filter @pazaak/pazaak-engine exec node --test dist/*.test.js 2>/dev/null || true
-rg -i 'trask' apps packages --glob '!**/node_modules/**' || true
+rg -i 'trask' apps packages --glob '!**/node_modules/**' --glob '!**/dist/**'; test $? -eq 1
 ```
 
 ## Portal

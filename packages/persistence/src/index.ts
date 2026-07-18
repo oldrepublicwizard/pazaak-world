@@ -1992,76 +1992,12 @@ export interface PazaakMatchHistoryRecord {
   summary: string;
 }
 
-export interface TraskSourceRecord {
-  id: string;
-  name: string;
-  url: string;
-}
-
-/** Scalar diagnostics attached to a live-trace row (Holocron debug panel). */
-export type TraskLiveEventDiagValue = string | number | boolean;
-
-/** Append-only timeline for Holocron / clients polling `GET /thread/:id`. */
-export interface TraskQueryLiveEvent {
-  at: string;
-  phase: string;
-  detail?: string;
-  sources?: readonly TraskSourceRecord[];
-  /** Structured key/value facts (indexer URL, passage counts, flags). */
-  diag?: Readonly<Record<string, TraskLiveEventDiagValue>>;
-  /** Absolute https URLs touched during this step (retrieve, verify, cite). */
-  urls?: readonly string[];
-}
-
-export interface TraskQueryRecord {
-  queryId: string;
-  /** Conversation/thread id (UUID); shareable via Holocron ?thread= */
-  threadId?: string;
-  userId: string;
-  query: string;
-  status: "pending" | "complete" | "failed";
-  answer: string | null;
-  /** Sources explicitly cited in the final answer. */
-  sources: readonly TraskSourceRecord[];
-  /** Sources retrieved as candidate evidence but not necessarily cited. */
-  retrievedSources?: readonly TraskSourceRecord[];
-  /** Raw allowlisted URLs visited while gathering evidence. */
-  visitedUrls?: readonly string[];
-  error: string | null;
-  createdAt: string;
-  completedAt: string | null;
-  /** Server-written progression while status is pending (and frozen at completion). */
-  liveTrace?: readonly TraskQueryLiveEvent[];
-  /** Grounding quality for Holocron provenance (grounded | partial | failed). */
-  groundingStatus?: "grounded" | "partial" | "failed";
-}
-
 interface PazaakMatchHistoryFileShape {
   version: 1;
   matches: Record<string, PazaakMatchHistoryRecord>;
 }
 
-interface TraskQueryFileShape {
-  version: 1;
-  queries: Record<string, TraskQueryRecord>;
-}
-
 const cloneHistoryRecord = (record: PazaakMatchHistoryRecord): PazaakMatchHistoryRecord => ({ ...record });
-const cloneTraskSource = (source: TraskSourceRecord): TraskSourceRecord => ({ ...source });
-const cloneTraskLiveEvent = (ev: TraskQueryLiveEvent): TraskQueryLiveEvent => ({
-  ...ev,
-  ...(ev.sources ? { sources: ev.sources.map(cloneTraskSource) } : {}),
-  ...(ev.diag ? { diag: { ...ev.diag } } : {}),
-  ...(ev.urls ? { urls: [...ev.urls] } : {}),
-});
-
-const cloneTraskQueryRecord = (record: TraskQueryRecord): TraskQueryRecord => ({
-  ...record,
-  sources: record.sources.map(cloneTraskSource),
-  ...(record.retrievedSources ? { retrievedSources: record.retrievedSources.map(cloneTraskSource) } : {}),
-  ...(record.visitedUrls ? { visitedUrls: [...record.visitedUrls] } : {}),
-  ...(record.liveTrace ? { liveTrace: record.liveTrace.map(cloneTraskLiveEvent) } : {}),
-});
 
 export class JsonPazaakMatchHistoryRepository {
   private state?: PazaakMatchHistoryFileShape;
@@ -2101,84 +2037,6 @@ export class JsonPazaakMatchHistoryRepository {
 
   private async persist(state: PazaakMatchHistoryFileShape): Promise<void> {
     await writeFile(this.filePath, JSON.stringify(state, null, 2), "utf8");
-  }
-}
-
-export class JsonTraskQueryRepository {
-  private state: TraskQueryFileShape | undefined;
-
-  /** Serialize disk writes so concurrent `upsert` (e.g. live trace + completion) never clobber each other. */
-  private ioChain: Promise<void> = Promise.resolve();
-
-  private runSerialized<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.ioChain.then(fn);
-    this.ioChain = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
-  }
-
-  public constructor(private readonly filePath: string) {}
-
-  public async append(record: TraskQueryRecord): Promise<TraskQueryRecord> {
-    return this.upsert(record);
-  }
-
-  /** Insert or replace by `queryId` (used for pending → live updates → final). */
-  public async upsert(record: TraskQueryRecord): Promise<TraskQueryRecord> {
-    return this.runSerialized(async () => {
-      this.state = undefined;
-      const state = await this.ensureState();
-      const cloned = cloneTraskQueryRecord(record);
-      state.queries[record.queryId] = cloned;
-      await this.persist(state);
-      this.state = undefined;
-      return cloneTraskQueryRecord(cloned);
-    });
-  }
-
-  public async listForUser(userId: string, limit = 25, threadId?: string): Promise<readonly TraskQueryRecord[]> {
-    return this.runSerialized(async () => {
-      this.state = undefined;
-      const state = await this.ensureState();
-      return Object.values(state.queries)
-        .filter((record) => record.userId === userId)
-        .filter((record) => !threadId || record.threadId === threadId)
-        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-        .slice(0, Math.max(1, Math.min(100, limit)))
-        .map(cloneTraskQueryRecord);
-    });
-  }
-
-  public async getByQueryId(queryId: string): Promise<TraskQueryRecord | undefined> {
-    return this.runSerialized(async () => {
-      this.state = undefined;
-      const state = await this.ensureState();
-      const row = state.queries[queryId];
-      return row ? cloneTraskQueryRecord(row) : undefined;
-    });
-  }
-
-  private async ensureState(): Promise<TraskQueryFileShape> {
-    if (this.state) return this.state;
-    await mkdir(path.dirname(this.filePath), { recursive: true });
-
-    try {
-      const raw = await readFile(this.filePath, "utf8");
-      this.state = JSON.parse(raw) as TraskQueryFileShape;
-    } catch {
-      this.state = { version: 1, queries: {} };
-      await this.persist(this.state);
-    }
-
-    return this.state;
-  }
-
-  private async persist(state: TraskQueryFileShape): Promise<void> {
-    const tempPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(tempPath, JSON.stringify(state, null, 2), "utf8");
-    await renameWithRetry(tempPath, this.filePath);
   }
 }
 

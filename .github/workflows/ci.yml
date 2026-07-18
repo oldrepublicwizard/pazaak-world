@@ -49,8 +49,12 @@ jobs:
 
       - name: Trask coupling gate
         run: |
-          if rg -i 'createTraskHttpRouter|/api/trask|TraskScreen' apps packages --glob '!**/node_modules/**' --glob '!**/dist/**'; then
+          if rg -i 'trask' apps packages --glob '!**/node_modules/**' --glob '!**/dist/**'; then
             echo "Trask coupling must stay removed" >&2
             exit 1
           fi
-          echo "Trask gate OK"
+          if rg -i '@openkotor/' apps packages --glob '!**/node_modules/**' --glob '!**/dist/**' --glob '!pnpm-lock.yaml'; then
+            echo "@openkotor scope must stay renamed" >&2
+            exit 1
+          fi
+          echo "Trask/scope gate OK"

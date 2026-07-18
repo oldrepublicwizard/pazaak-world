@@ -127,7 +127,13 @@ const apiClient = createBrowserApiClient({
 
 const primaryApiBase = apiClient.apiBases.find((base) => base.trim().length > 0)?.trim() ?? "";
 
+const STATIC_PAZAAK_PAGES_HOSTS = new Set([
+  "oldrepublicwizard.github.io",
+  "openkotor.github.io", // legacy extract hosts still treat static Pages as non-WS
+]);
+
 const STATIC_PAZAAK_PAGES_PATH_PREFIXES = [
+  "/pazaak-world",
   "/community-bots",
   "/community-bots/pazaakworld",
   "/bots",
@@ -140,7 +146,7 @@ const isStaticPagesApiBase = (rawBase: string): boolean => {
   }
   try {
     const url = new URL(rawBase);
-    if (url.hostname !== "openkotor.github.io") {
+    if (!STATIC_PAZAAK_PAGES_HOSTS.has(url.hostname)) {
       return false;
     }
     const pathname = trimTrailingSlashes(url.pathname) || "/";

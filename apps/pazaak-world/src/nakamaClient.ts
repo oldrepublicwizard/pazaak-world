@@ -132,7 +132,7 @@ export async function ensureNakamaSession(
        */
       return await client.authenticateDevice(deviceId, true);
     }
-    return await client.authenticateCustom(`openkotor:${stableAccountId}`, true, username);
+    return await client.authenticateCustom(`pazaak:${stableAccountId}`, true, username);
   } catch (err) {
     throw await nakamaAsError(err, guestLike ? "Nakama authenticateDevice" : "Nakama authenticateCustom");
   }

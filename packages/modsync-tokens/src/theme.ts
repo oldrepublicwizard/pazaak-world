@@ -1,7 +1,7 @@
 /** ModSync shell themes (K1 default, TSL, Light installer). */
 export type ModsyncThemeId = "k1" | "tsl" | "light";
 
-const STORAGE_KEY = "openkotor.modsync.theme";
+const STORAGE_KEY = "pazaak.modsync.theme";
 
 const THEME_CLASS: Record<ModsyncThemeId, string | null> = {
   k1: null,

@@ -303,7 +303,7 @@ export const fetchGithubSocialAuthProfile = async (
   config: SocialAuthCodeExchangeConfig,
   options: FetchGithubSocialAuthProfileOptions = {},
 ): Promise<SocialAuthProfile> => {
-  const userAgent = options.userAgent ?? "openkotor-platform";
+  const userAgent = options.userAgent ?? "pazaak-platform";
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: {
