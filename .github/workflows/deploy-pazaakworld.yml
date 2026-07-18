@@ -6,15 +6,9 @@ on:
       - main
     paths:
       - "apps/pazaak-world/**"
-      - "apps/hk86-web/**"
-      - "apps/holocron-web/**"
-      - "apps/trask-http-server/**"
       - "packages/**"
-      - "vendor/**"
-      - "wiki/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
-      - ".gitmodules"
       - ".github/workflows/deploy-pazaakworld.yml"
   workflow_dispatch:
 
@@ -30,60 +24,37 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      base_path: ${{ steps.base.outputs.base_path }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-          # Default GITHUB_TOKEN for same-repo PRs. Do not pass ACTIONS_SUBMODULES_TOKEN when
-          # the secret is stale — it overrides the default token and breaks submodule checkout.
+        uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
         with:
           version: 10.11.0
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: pnpm
 
-      - name: Resolve Pages base path
-        id: base
-        shell: bash
-        run: |
-          echo "base_path=/community-bots/" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build workspace libraries (dist for workspace:* deps)
+      - name: Build workspace libraries
         run: |
           pnpm --filter @pazaak/platform build
-          pnpm --filter @pazaak/trask build
+          pnpm --filter @pazaak/modsync-tokens build
           pnpm --filter @pazaak/blackjack-engine build
           pnpm --filter @pazaak/pazaak-engine build
 
       - name: Build PazaakWorld
         env:
-          BASE: ${{ steps.base.outputs.base_path }}
-          # Use workflow vars (not `gh variable get` + GITHUB_TOKEN — that often returns empty).
+          BASE: /pazaak-world/
           VITE_API_BASES: ${{ vars.PAZAAK_API_BASES }}
-          # Optional: prepended before VITE_API_BASES so embedded bot (OAuth/Trask) is primary and PAZAAK_API_BASES can list Worker fallbacks.
-          VITE_LEGACY_HTTP_ORIGIN: ${{ vars.VITE_LEGACY_HTTP_ORIGIN }}
           VITE_REPO_BASE_URL: https://github.com/${{ github.repository }}
-          VITE_WIKI_BASE_URL: ${{ vars.WIKI_BASE_URL }}
-          VITE_TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
-          VITE_TRASK_INVITE_BASE_URL: ${{ vars.TRASK_INVITE_BASE_URL != '' && vars.TRASK_INVITE_BASE_URL || vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_DISCORD_APPLICATION_ID: ${{ vars.TRASK_DISCORD_APP_ID }}
-          VITE_HK_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
-          VITE_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
           VITE_PAZAAK_DISCORD_APPLICATION_ID: ${{ vars.PAZAAK_DISCORD_APP_ID }}
-          # Optional: point the static Pages bundle at a hosted Nakama (see docs/nakama-cloud-hosting.md).
           VITE_PAZAAK_BACKEND: ${{ vars.VITE_PAZAAK_BACKEND }}
           VITE_NAKAMA_HOST: ${{ vars.VITE_NAKAMA_HOST }}
           VITE_NAKAMA_PORT: ${{ vars.VITE_NAKAMA_PORT }}
@@ -91,90 +62,8 @@ jobs:
           VITE_NAKAMA_SERVER_KEY: ${{ vars.VITE_NAKAMA_SERVER_KEY }}
         run: pnpm --filter pazaak-world build
 
-      - name: Check Holocron API base
-        if: hashFiles('apps/holocron-web/package.json') != ''
-        env:
-          TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
-        run: |
-          echo "Holocron Trask API base: ${TRASK_API_BASE}"
-
-      - name: Verify Trask public API health (worker + upstream)
-        if: hashFiles('apps/holocron-web/package.json') != ''
-        env:
-          TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-        run: |
-          if ! bash scripts/check_trask_public_api.sh; then
-            echo "::warning::Trask public API health check failed; continuing Pages deploy because the static client, Worker, and Hugging Face backend deploy independently."
-          fi
-
-      - name: Build Holocron web (Trask Q&A SPA)
-        if: hashFiles('apps/holocron-web/package.json') != ''
-        env:
-          BASE: /community-bots/qa-webui/
-          ENABLE_SPARK: "0"
-          VITE_TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
-        run: pnpm --filter @pazaak/holocron-web build
-
-      - name: Publish Holocron web under /community-bots/qa-webui/
-        if: hashFiles('apps/holocron-web/package.json') != ''
-        run: |
-          mkdir -p apps/pazaak-world/dist/qa-webui
-          cp -R apps/holocron-web/dist/. apps/pazaak-world/dist/qa-webui/
-
-      - name: Build Discord bots hub WebUI (hk86)
-        env:
-          BASE: /community-bots/hk86/
-          VITE_REPO_BASE_URL: https://github.com/${{ github.repository }}
-          VITE_WIKI_BASE_URL: ${{ vars.WIKI_BASE_URL }}
-          VITE_TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
-          VITE_TRASK_INVITE_BASE_URL: ${{ vars.TRASK_INVITE_BASE_URL != '' && vars.TRASK_INVITE_BASE_URL || vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_DISCORD_APPLICATION_ID: ${{ vars.TRASK_DISCORD_APP_ID }}
-          VITE_HK_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
-          VITE_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
-          VITE_PAZAAK_DISCORD_APPLICATION_ID: ${{ vars.PAZAAK_DISCORD_APP_ID }}
-        run: pnpm --filter hk86-web build
-
-      - name: Publish HK-86 WebUI under /community-bots/hk86/
-        run: |
-          mkdir -p apps/pazaak-world/dist/hk86
-          cp -R apps/hk86-web/dist/. apps/pazaak-world/dist/hk86/
-
-      - name: Add SPA fallback
-        run: cp apps/pazaak-world/dist/index.html apps/pazaak-world/dist/404.html
-
-      # GitHub Pages returns 404 for unknown paths even when 404.html is the SPA shell.
-      # Duplicate the SPA shell so /community-bots/discord and /community-bots/pazaakworld
-      # resolve to real files (HTTP 200) for crawlers, curl, and strict clients.
-      - name: Materialize SPA routes for static hosting
-        shell: bash
-        run: |
-          set -euo pipefail
-          root="apps/pazaak-world/dist"
-          routes=(
-            discord
-            pazaakworld
-            pazaakworld/onboarding
-            pazaakworld/matchmaking
-            pazaakworld/lobby
-            pazaakworld/practice
-            pazaakworld/blackjack
-            pazaakworld/workshop
-            pazaakworld/trask
-            pazaakworld/tournaments
-          )
-          for sub in "${routes[@]}"; do
-            mkdir -p "$root/$sub"
-            cp "$root/index.html" "$root/$sub/index.html"
-          done
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: apps/pazaak-world/dist
 
@@ -187,4 +76,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
