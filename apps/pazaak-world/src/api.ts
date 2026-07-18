@@ -215,8 +215,8 @@ export interface OpponentsResponse {
 
 const DEFAULT_CARDWORLD_CONFIG: CardWorldConfig = {
   botGameType: "pazaak",
-  defaultPublicGameType: "blackjack",
-  pazaakRequiresOwnershipProof: true,
+  defaultPublicGameType: "pazaak",
+  pazaakRequiresOwnershipProof: false,
   acceptedOwnershipProofFilenames: ["chitin.key"],
 };
 

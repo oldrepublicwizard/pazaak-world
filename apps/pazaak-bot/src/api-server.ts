@@ -280,10 +280,10 @@ export function createApiServer(
   const app = express();
   const cardWorldConfig: CardWorldConfig = {
     botGameType: opts.botGameType ?? "pazaak",
-    defaultPublicGameType: (opts.botGameType ?? "pazaak") === "pazaak" && (opts.pazaakRequiresOwnershipProof ?? true)
+    defaultPublicGameType: (opts.botGameType ?? "pazaak") === "pazaak" && (opts.pazaakRequiresOwnershipProof ?? false)
       ? "blackjack"
       : (opts.botGameType ?? "pazaak"),
-    pazaakRequiresOwnershipProof: opts.pazaakRequiresOwnershipProof ?? true,
+    pazaakRequiresOwnershipProof: opts.pazaakRequiresOwnershipProof ?? false,
     acceptedOwnershipProofFilenames: ["chitin.key"],
   };
   const allowedCorsOrigins = buildBrowserCorsAllowedOrigins({

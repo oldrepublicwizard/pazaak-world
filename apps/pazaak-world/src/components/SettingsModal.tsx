@@ -538,11 +538,11 @@ export function SettingsModal({ isOpen, currentSettings, onClose, onSave, cardWo
           <h3 className="settings-section-title">📜 CardWorld Access</h3>
           {cw.isPazaakUnlocked ? (
             <p className="settings-section-desc">
-              Online Match / Lobby unlocked{cw.ownershipProof ? ` via ${cw.ownershipProof.filename}` : ""}. Local AI Pazaak stays available for everyone.
+              Pazaak access is open{cw.ownershipProof ? ` (proof on file: ${cw.ownershipProof.filename})` : ""}. Local AI works offline; online Match / Lobby need a live API.
             </p>
           ) : (
             <p className="settings-section-desc">
-              Local AI Pazaak is open without a proof file. Upload chitin.key to unlock online Match / Lobby when connected to a live API.
+              Upload chitin.key to unlock online Match / Lobby. Local AI Pazaak remains available from the Match Hub.
             </p>
           )}
           <div className="settings-cardworld-actions" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>

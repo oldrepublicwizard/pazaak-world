@@ -12,6 +12,7 @@
     "check": "tsc -b tsconfig.workspace.json --pretty false",
     "test": "node --test packages/*/dist/*.test.js",
     "check:pazaak-oauth": "node scripts/check_pazaak_oauth_readiness.mjs",
+    "check:pazaak-oauth:checklist": "node scripts/check_pazaak_oauth_readiness.mjs --checklist",
     "dev:pazaak": "pnpm --filter @pazaak/pazaak-bot dev",
     "dev:pazaak-world": "pnpm --filter pazaak-world dev",
     "dev:pazaak-nakama": "pnpm --filter @pazaak/pazaak-nakama build && docker compose -f infra/nakama/docker-compose.yml up",

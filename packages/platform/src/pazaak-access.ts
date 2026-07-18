@@ -14,8 +14,8 @@ export interface PazaakAccessOptions {
  * Holowan Multiplayer Pazaak access policy.
  *
  * - **local_ai** — always allowed (guest marketing / Pages playable slice).
- * - **online** — optional `chitin.key` when `pazaakRequiresOwnershipProof` is true
- *   (Discord Activity bypasses the upload UX).
+ * - **online** — optional `chitin.key` only when `pazaakRequiresOwnershipProof` is true
+ *   (Holowan default is false / `CARDWORLD_REQUIRE_CHITIN_KEY=0`; Discord Activity bypasses upload UX).
  */
 export const isPazaakAccessAllowed = (options: PazaakAccessOptions): boolean => {
   if (options.surface === "local_ai") {

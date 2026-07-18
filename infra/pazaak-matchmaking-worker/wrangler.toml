@@ -13,7 +13,7 @@ PAZAAK_TURN_TIMEOUT_MS = "300000"
 PAZAAK_DISCONNECT_FORFEIT_MS = "30000"
 PAZAAK_POLICY_JSON = "{\"features\":{\"workerMatchAuthority\":true}}"
 # Where OAuth callbacks redirect after issuing app_token (GitHub Pages bundle root)
-PUBLIC_WEB_ORIGIN = "https://openkotor.github.io/community-bots/pazaakworld"
+PUBLIC_WEB_ORIGIN = "https://oldrepublicwizard.github.io/pazaak-world"
 # Optional: comma-separated worker auth accountIds allowed to call /api/admin/policy
 # ADMIN_USER_IDS = ""
 # Set these as Cloudflare secrets for production Activity verification/token exchange:

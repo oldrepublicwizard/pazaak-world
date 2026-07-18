@@ -18,10 +18,13 @@ pnpm build
 pnpm --filter @pazaak/pazaak-engine exec node --test dist/*.test.js 2>/dev/null || true
 rg -i 'trask' apps packages --glob '!**/node_modules/**' --glob '!**/dist/**'; test $? -eq 1
 ./scripts/prove-pages-smoke.sh
+pnpm check:pazaak-oauth:checklist
 ```
 
 Live SPA: https://oldrepublicwizard.github.io/pazaak-world/  
-Without `vars.PAZAAK_API_BASES`, Pages is **offline-static** (local Blackjack; no `github.io/api/*` fetches). See `docs/solutions/runtime-errors/github-pages-same-origin-api-bases.md`.
+Without `vars.PAZAAK_API_BASES`, Pages is **offline-static** (local AI playable; no `github.io/api/*` fetches). See `docs/solutions/runtime-errors/github-pages-same-origin-api-bases.md` and `docs/ops/holowan-oauth-and-api-bases.md`.
+
+OAuth callbacks must hit the **bot/Worker**, never Pages. Holowan default: `CARDWORLD_REQUIRE_CHITIN_KEY=0`.
 
 ## Portal
 

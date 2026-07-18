@@ -8,31 +8,22 @@ tags:
   - holowan
   - chitin-key
   - guest-play
-  - github-pages
+  - oauth
 ---
 
-# Guest local AI Pazaak without chitin.key
+# Holowan guests: no chitin.key for local or online surfaces
 
 ## Decision
 
-Holowan public Pages must be **honestly playable** as Multiplayer Pazaak marketing:
-
 | Surface | Gate |
 |---------|------|
-| Local AI Pazaak | Always open (no `chitin.key`) |
-| Online Match / Lobby | Still requires ownership proof when `pazaakRequiresOwnershipProof` is true |
-| Blackjack | Remains available as alternate practice |
+| Local AI Pazaak | Always open (`surface: local_ai`) |
+| Online Match / Lobby | Open by default (`pazaakRequiresOwnershipProof: false` / `CARDWORLD_REQUIRE_CHITIN_KEY=0`) |
+| Blackjack | Still available |
 
-## Implementation
+Re-gate online with `CARDWORLD_REQUIRE_CHITIN_KEY=1` or API `pazaakRequiresOwnershipProof: true` if policy changes.
 
-`@pazaak/platform` → `isPazaakAccessAllowed({ surface: "local_ai" | "online", ... })`.
+## Related
 
-`App.tsx` routes `onStartLocalGame` through the local surface; online buttons keep the online surface.
-
-## Verification
-
-```bash
-pnpm --filter @pazaak/platform build
-node --test packages/platform/dist/utils.test.js
-# After Pages deploy: Challenge Selected → local board (not Blackjack redirect)
-```
+- Access helper: `@pazaak/platform` `isPazaakAccessAllowed`
+- OAuth / API cutover: `docs/ops/holowan-oauth-and-api-bases.md`

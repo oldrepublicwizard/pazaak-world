@@ -47,6 +47,9 @@ jobs:
       - name: Engine unit tests
         run: node --test packages/pazaak-engine/dist/*.test.js
 
+      - name: OAuth ops checklist (no secrets required)
+        run: pnpm check:pazaak-oauth:checklist
+
       - name: Trask coupling gate
         run: |
           if rg -i 'trask' apps packages --glob '!**/node_modules/**' --glob '!**/dist/**'; then

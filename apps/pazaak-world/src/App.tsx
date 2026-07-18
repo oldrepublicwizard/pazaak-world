@@ -91,8 +91,8 @@ const LEGACY_CHITIN_PROOF_STORAGE_KEY = "cardworld-chitin-proof-v1";
 
 const DEFAULT_CARDWORLD_CONFIG: CardWorldConfig = {
   botGameType: "pazaak",
-  defaultPublicGameType: "blackjack",
-  pazaakRequiresOwnershipProof: true,
+  defaultPublicGameType: "pazaak",
+  pazaakRequiresOwnershipProof: false,
   acceptedOwnershipProofFilenames: ["chitin.key"],
 };
 
@@ -1632,8 +1632,14 @@ function ModeSelectionScreen({
             className="pazaak-world-card__notice"
             style={{ textAlign: "center", margin: "0 auto 1rem", maxWidth: "36rem" }}
           >
-            Local AI Pazaak is open for guests. Upload <code>chitin.key</code> in{" "}
-            <strong>Settings</strong> (⚙) → CardWorld Access to unlock online Match / Lobby when a server is connected.
+            Upload <code>chitin.key</code> in <strong>Settings</strong> (⚙) → CardWorld Access to unlock online Match / Lobby.
+          </p>
+        ) : !isOnline ? (
+          <p
+            className="pazaak-world-card__notice"
+            style={{ textAlign: "center", margin: "0 auto 1rem", maxWidth: "36rem" }}
+          >
+            Local AI Pazaak is ready. Online Match / Lobby need an API origin (`PAZAAK_API_BASES` / live bot or Worker).
           </p>
         ) : null}
 

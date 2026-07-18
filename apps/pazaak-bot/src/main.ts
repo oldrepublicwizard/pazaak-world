@@ -93,7 +93,7 @@ const matchmakingQueueRepository = new JsonPazaakMatchmakingQueueRepository(reso
 const lobbyRepository = new JsonPazaakLobbyRepository(resolveDataFile(config.dataDir, "lobbies.json"));
 const matchHistoryRepository = new JsonPazaakMatchHistoryRepository(resolveDataFile(config.dataDir, "match-history.json"));
 const cardWorldBotGameType = normalizeCardGameType(process.env.CARDWORLD_BOT_GAME_TYPE?.trim(), "pazaak");
-const pazaakRequiresOwnershipProof = (process.env.CARDWORLD_REQUIRE_CHITIN_KEY?.trim() ?? "1") !== "0";
+const pazaakRequiresOwnershipProof = (process.env.CARDWORLD_REQUIRE_CHITIN_KEY?.trim() ?? "0") !== "0";
 const workerSyncUrl = process.env.PAZAAK_WORKER_SYNC_URL?.trim();
 const workerSyncSecret = process.env.PAZAAK_BOT_SYNC_SECRET?.trim();
 if (

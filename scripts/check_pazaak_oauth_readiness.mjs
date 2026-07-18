@@ -1,10 +1,21 @@
 #!/usr/bin/env node
 
+/**
+ * OAuth readiness for Holowan Multiplayer Pazaak.
+ *
+ *   node scripts/check_pazaak_oauth_readiness.mjs --checklist   # always exit 0; print ops cutover
+ *   node scripts/check_pazaak_oauth_readiness.mjs               # local .env + optional :4001 probe
+ */
+
 import fs from "node:fs";
 import path from "node:path";
 
 const projectRoot = process.cwd();
 const envPath = path.join(projectRoot, ".env");
+const checklistOnly = process.argv.includes("--checklist");
+
+const HOLOWAN_PAGES = "https://oldrepublicwizard.github.io/pazaak-world";
+const LOCAL_API = "http://127.0.0.1:4001";
 
 const PROVIDERS = [
   {
@@ -83,11 +94,24 @@ const hasValue = (vars, key) => {
   return typeof fromEnvFile === "string" && fromEnvFile.trim().length > 0;
 };
 
+const resolveValue = (vars, key) => {
+  const fromProcess = process.env[key]?.trim();
+  if (fromProcess) {
+    return fromProcess;
+  }
+  return (vars.get(key) || "").trim();
+};
+
 const callbackLooksLocal = (vars, key, provider) => {
   const fallback = `http://localhost:4001/api/auth/oauth/${provider}/callback`;
-  const fromProcess = process.env[key]?.trim();
-  const value = (fromProcess && fromProcess.length > 0 ? fromProcess : vars.get(key) || "").trim();
-  return value.length > 0 && value === fallback;
+  const alt = `http://127.0.0.1:4001/api/auth/oauth/${provider}/callback`;
+  const value = resolveValue(vars, key);
+  return value.length > 0 && (value === fallback || value === alt);
+};
+
+const callbackPointsAtPages = (vars, key) => {
+  const value = resolveValue(vars, key).toLowerCase();
+  return value.includes("github.io");
 };
 
 const checkProviderVars = (provider, vars) => {
@@ -103,15 +127,17 @@ const checkProviderVars = (provider, vars) => {
     }
   }
 
+  const callbackKey = provider.vars[2];
   return {
     missing,
-    callbackLocal: callbackLooksLocal(vars, provider.vars[2], provider.name),
+    callbackLocal: callbackLooksLocal(vars, callbackKey, provider.name),
+    callbackOnPages: callbackPointsAtPages(vars, callbackKey),
   };
 };
 
-const fetchProviderStatus = async () => {
+const fetchProviderStatus = async (apiBase = LOCAL_API) => {
   try {
-    const res = await fetch("http://localhost:4001/api/auth/oauth/providers");
+    const res = await fetch(`${apiBase.replace(/\/$/u, "")}/api/auth/oauth/providers`);
     if (!res.ok) {
       return { ok: false, reason: `HTTP ${res.status}` };
     }
@@ -126,26 +152,66 @@ const print = (line = "") => {
   process.stdout.write(`${line}\n`);
 };
 
+const printChecklist = () => {
+  print("Holowan OAuth + API bases checklist");
+  print("===================================");
+  print(`SPA / return origin: ${HOLOWAN_PAGES}/`);
+  print(`Local API:           ${LOCAL_API}`);
+  print("");
+  print("Discord redirect URIs (API host — not Pages):");
+  print(`  ${LOCAL_API}/api/auth/oauth/discord/callback`);
+  print("  https://pazaak-matchmaking.<account>.workers.dev/api/auth/oauth/discord/callback");
+  print("");
+  print("Anti-pattern (always broken):");
+  print(`  ${HOLOWAN_PAGES}/api/auth/oauth/discord/callback`);
+  print("");
+  print("GitHub repo (oldrepublicwizard/pazaak-world):");
+  print("  gh variable set PAZAAK_API_BASES --body 'https://pazaak-matchmaking.<account>.workers.dev'");
+  print("  gh secret set CLOUDFLARE_API_TOKEN");
+  print("  gh secret set CLOUDFLARE_ACCOUNT_ID");
+  print("");
+  print("Docs: docs/ops/holowan-oauth-and-api-bases.md");
+  print("");
+};
+
 const main = async () => {
+  printChecklist();
+  if (checklistOnly) {
+    print("RESULT: checklist printed (--checklist). Secrets not required for this mode.");
+    return;
+  }
+
   const envVars = readEnv();
 
-  print("Pazaak OAuth readiness check");
-  print("===========================");
+  print("Local .env probe");
+  print("----------------");
   print(`.env path: ${envPath}`);
   if (!fs.existsSync(envPath)) {
     print("WARNING: .env file not found. Only process environment variables will be checked.");
   }
   print("");
 
+  let anyMissing = false;
+  let anyPagesCallback = false;
+
   for (const provider of PROVIDERS) {
-    const { missing, callbackLocal } = checkProviderVars(provider, envVars);
+    const { missing, callbackLocal, callbackOnPages } = checkProviderVars(provider, envVars);
     print(`[${provider.name}]`);
     print(`  required vars present: ${missing.length === 0 ? "yes" : "no"}`);
     if (missing.length > 0) {
+      anyMissing = true;
       print(`  missing: ${missing.join(", ")}`);
     }
-    print(`  callback is localhost default: ${callbackLocal ? "yes" : "no"}`);
+    print(`  callback is localhost: ${callbackLocal ? "yes" : "no"}`);
+    if (callbackOnPages) {
+      anyPagesCallback = true;
+      print("  ERROR: callback points at github.io — OAuth will 404. Point at bot/Worker instead.");
+    }
     print("");
+  }
+
+  if (anyPagesCallback) {
+    process.exitCode = 4;
   }
 
   const status = await fetchProviderStatus();
@@ -153,8 +219,12 @@ const main = async () => {
   print("-------------------------------------------");
   if (!status.ok) {
     print(`could not query local API: ${status.reason}`);
-    print("Make sure corepack pnpm dev:pazaak is running and listening on http://localhost:4001");
-    process.exitCode = 1;
+    print("Make sure pnpm dev:pazaak is running on :4001 (or pass a live Worker URL later).");
+    print("");
+    print(anyMissing
+      ? "RESULT: BLOCKED — fill .env secrets, then start the bot API."
+      : "RESULT: BLOCKED_ON_API — env may be OK; bot/Worker not reachable.");
+    process.exitCode = process.exitCode || (anyMissing ? 2 : 1);
     return;
   }
 
@@ -165,13 +235,18 @@ const main = async () => {
 
   const allEnabled = providers.length > 0 && providers.every((provider) => provider.enabled);
   print("");
+  if (anyPagesCallback) {
+    print("RESULT: FAIL — fix github.io callback URLs before enabling providers.");
+    return;
+  }
   print(allEnabled ? "RESULT: all configured providers are enabled." : "RESULT: one or more providers are still disabled.");
 
   if (!allEnabled) {
     print("Next steps:");
     print("  1. Fill any missing env vars shown above");
-    print("  2. Restart corepack pnpm dev:pazaak");
+    print("  2. Restart pnpm dev:pazaak");
     print("  3. Re-run this checker");
+    print("  4. For Pages multiplayer: set PAZAAK_API_BASES + Cloudflare secrets (see checklist)");
     process.exitCode = 2;
   }
 };
