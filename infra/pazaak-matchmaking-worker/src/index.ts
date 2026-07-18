@@ -165,6 +165,8 @@ type StorageShape = {
   lobbies: LobbyRecord[];
   tournaments: Record<string, TournamentState>;
   oauthStates: Record<string, { provider: string; expiresAt: number; pendingMatchId?: string; codeVerifier?: string }>;
+  /** accountId / game userId → active MATCH_ACTOR match id */
+  activeMatchesByUserId: Record<string, string>;
   policyRuntime?: PolicyRuntimeState;
   auditLog?: AuditEntry[];
 };
@@ -1267,10 +1269,14 @@ export class MatchCoordinator {
       lobbies: [],
       tournaments: {},
       oauthStates: {},
+      activeMatchesByUserId: {},
     };
     // Back-fill tournaments map for pre-existing storage snapshots.
     if (!loaded.tournaments) {
       loaded.tournaments = {};
+    }
+    if (!loaded.activeMatchesByUserId) {
+      loaded.activeMatchesByUserId = {};
     }
     for (const entry of loaded.queue) {
       if (!entry.preferredRegions?.length) {
@@ -1282,6 +1288,64 @@ export class MatchCoordinator {
     }
     this.loaded = loaded;
     return loaded;
+  }
+
+  private async fetchMatchSnapshot(matchId: string): Promise<SerializedMatch | null> {
+    if (!this.env.MATCH_ACTOR) return null;
+    const stub = this.env.MATCH_ACTOR.get(this.env.MATCH_ACTOR.idFromName(matchId));
+    const res = await stub.fetch(new Request("http://internal/state", { method: "GET" }));
+    if (!res.ok) return null;
+    const body = await res.json<{ snapshot?: SerializedMatch | null }>().catch(() => null);
+    return body?.snapshot ?? null;
+  }
+
+  private rememberActiveMatch(state: StorageShape, matchId: string, ...userIds: string[]): void {
+    if (!state.activeMatchesByUserId) state.activeMatchesByUserId = {};
+    for (const userId of userIds) {
+      if (userId) state.activeMatchesByUserId[userId] = matchId;
+    }
+  }
+
+  private clearActiveMatch(state: StorageShape, matchId: string): void {
+    if (!state.activeMatchesByUserId) return;
+    for (const [userId, id] of Object.entries(state.activeMatchesByUserId)) {
+      if (id === matchId) delete state.activeMatchesByUserId[userId];
+    }
+  }
+
+  private async proxyMatchCommand(
+    matchId: string,
+    userId: string,
+    type: string,
+    extra: Record<string, unknown> = {},
+  ): Promise<Response> {
+    if (!this.env.MATCH_ACTOR) {
+      return error("Match actor unavailable", 501);
+    }
+    const stub = this.env.MATCH_ACTOR.get(this.env.MATCH_ACTOR.idFromName(matchId));
+    const res = await stub.fetch(
+      new Request("http://internal/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId, userId, type, ...extra }),
+      }),
+    );
+    const text = await res.text();
+    let body: { snapshot?: SerializedMatch; error?: string } | null = null;
+    try {
+      body = text ? JSON.parse(text) as { snapshot?: SerializedMatch; error?: string } : null;
+    } catch {
+      body = null;
+    }
+    if (!res.ok) {
+      return error(body?.error || text || "Match command failed", res.status);
+    }
+    if (body?.snapshot?.phase === "completed") {
+      const state = await this.readState();
+      this.clearActiveMatch(state, matchId);
+      await this.persist(state);
+    }
+    return json({ match: body?.snapshot ?? null });
   }
 
   private async persist(state: StorageShape): Promise<void> {
@@ -1670,6 +1734,13 @@ export class MatchCoordinator {
       await this.persist(state);
       await this.tryPairMatchmakingQueue(state);
       await this.persist(state);
+      const pairedMatchId = state.activeMatchesByUserId?.[authed.account.accountId] ?? null;
+      if (pairedMatchId) {
+        const snapshot = await this.fetchMatchSnapshot(pairedMatchId);
+        if (snapshot) {
+          return json({ queue: null, match: snapshot });
+        }
+      }
       return json({ queue: entry });
     }
 
@@ -1885,15 +1956,66 @@ export class MatchCoordinator {
       lobby.matchId = matchId;
       lobby.status = "in_game";
       lobby.updatedAt = nowIso();
+      this.rememberActiveMatch(state, matchId, p1.userId, p2.userId);
       await this.persist(state);
       return json({ lobby, match: createBody.snapshot });
     }
 
     if (path === "/api/match/me" && request.method === "GET") {
-      return error("No active match", 404);
+      const resolvedMatchId = state.activeMatchesByUserId?.[authed.account.accountId] ?? null;
+      if (!resolvedMatchId) {
+        return error("No active match", 404);
+      }
+      const snapshot = await this.fetchMatchSnapshot(resolvedMatchId);
+      if (!snapshot) {
+        this.clearActiveMatch(state, resolvedMatchId);
+        await this.persist(state);
+        return error("No active match", 404);
+      }
+      if (snapshot.phase === "completed") {
+        this.clearActiveMatch(state, resolvedMatchId);
+        await this.persist(state);
+      }
+      return json({ match: snapshot });
     }
 
-    if (path.startsWith("/api/match/") && request.method === "GET") {
+    const matchAction = path.match(/^\/api\/match\/([^/]+)(?:\/(draw|stand|endturn|play|forfeit|concede|chat))?$/);
+    if (matchAction) {
+      const matchId = decodeURIComponent(matchAction[1] ?? "");
+      const action = matchAction[2] ?? null;
+      if (!matchId) return error("Missing match id", 400);
+
+      if (request.method === "GET" && !action) {
+        const snapshot = await this.fetchMatchSnapshot(matchId);
+        if (!snapshot) return error("Match not found", 404);
+        return json({ match: snapshot });
+      }
+
+      if (request.method === "POST" && action === "draw") {
+        return this.proxyMatchCommand(matchId, authed.account.accountId, "draw");
+      }
+      if (request.method === "POST" && action === "stand") {
+        return this.proxyMatchCommand(matchId, authed.account.accountId, "stand");
+      }
+      if (request.method === "POST" && action === "endturn") {
+        return this.proxyMatchCommand(matchId, authed.account.accountId, "end_turn");
+      }
+      if (request.method === "POST" && (action === "forfeit" || action === "concede")) {
+        return this.proxyMatchCommand(matchId, authed.account.accountId, "forfeit");
+      }
+      if (request.method === "POST" && action === "play") {
+        const payload = await request.json<Json>().catch(() => ({} as Json));
+        return this.proxyMatchCommand(matchId, authed.account.accountId, "play_side", {
+          cardId: payload.cardId,
+          appliedValue: payload.appliedValue,
+        });
+      }
+      if (action === "chat") {
+        return error("Match chat is not available on the Worker fallback yet.", 501);
+      }
+    }
+
+    if (path.startsWith("/api/match/") && (request.method === "GET" || request.method === "POST")) {
       return error("Match not found", 404);
     }
 
@@ -2063,8 +2185,11 @@ export class MatchCoordinator {
     if (!policy.features.workerMatchAuthority || !this.env.MATCH_ACTOR) {
       return;
     }
-    const namespace = this.env.MATCH_ACTOR;
     const now = Date.now();
+    const maxAgeMs = Math.max(60_000, policy.matchmaking.queueWidenAfterMs * 20);
+    // Drop abandoned queue rows so smoke/prod guests are not paired with zombies.
+    state.queue = state.queue.filter((entry) => now - (entry.enqueuedAtMs ?? now) <= maxAgeMs);
+    const namespace = this.env.MATCH_ACTOR;
     const q = [...state.queue];
     outer: for (let i = 0; i < q.length - 1; i++) {
       for (let j = i + 1; j < q.length; j++) {
@@ -2107,6 +2232,7 @@ export class MatchCoordinator {
           continue;
         }
         state.queue = state.queue.filter((e) => e.userId !== a.userId && e.userId !== b.userId);
+        this.rememberActiveMatch(state, matchId, a.userId, b.userId);
         break outer;
       }
     }

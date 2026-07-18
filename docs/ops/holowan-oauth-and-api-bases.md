@@ -36,7 +36,7 @@ Live SPA is on GitHub Pages (`oldrepublicwizard.github.io/pazaak-world`). Pages 
 |------|-----|
 | SPA / Activity return | `https://oldrepublicwizard.github.io/pazaak-world/` |
 | Local API (dev) | `http://127.0.0.1:4001` |
-| Worker (prod candidate) | `https://pazaak-matchmaking.<account>.workers.dev` (after Cloudflare deploy) |
+| Worker (prod) | `https://pazaak-matchmaking.bocloud.workers.dev` |
 
 ### Discord Developer Portal — redirect URIs
 
