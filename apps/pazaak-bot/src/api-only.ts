@@ -1,10 +1,13 @@
-#!/usr/bin/env node
-
+/**
+ * HTTP/WS API-only entry for local multiplayer without Discord credentials.
+ *
+ *   PAZAAK_ALLOW_DEV_AUTH=true pnpm --filter @pazaak/pazaak-bot dev:api
+ *   # or from repo root: pnpm dev:pazaak-api
+ */
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { createApiServer } from "../apps/pazaak-bot/dist/api-server.js";
-import { PazaakCoordinator } from "../packages/pazaak-engine/dist/index.js";
+import { PazaakCoordinator } from "@pazaak/pazaak-engine";
 import {
   JsonPazaakAccountRepository,
   JsonPazaakLobbyRepository,
@@ -12,14 +15,15 @@ import {
   JsonPazaakMatchmakingQueueRepository,
   JsonPazaakSideboardRepository,
   JsonWalletRepository,
-} from "../packages/persistence/dist/index.js";
+} from "@pazaak/persistence";
+
+import { createApiServer } from "./api-server.js";
 
 const port = Number(process.env.PAZAAK_API_PORT ?? "4001");
-const dataDir = resolve(
-  process.env.PAZAAK_WEBUI_TEST_DATA_DIR
-    ?? process.env.PAZAAK_REPOS_DIR
-    ?? "data/pazaak-webui-test",
-);
+const dataDir = resolve(process.env.PAZAAK_DATA_DIR ?? process.env.PAZAAK_WEBUI_TEST_DATA_DIR ?? "data/pazaak-api-only");
+const publicWebOrigin = process.env.PAZAAK_PUBLIC_WEB_ORIGIN?.trim() || "http://localhost:5173";
+const activityOrigin = process.env.PAZAAK_ACTIVITY_URL?.trim() || publicWebOrigin;
+const pazaakRequiresOwnershipProof = (process.env.CARDWORLD_REQUIRE_CHITIN_KEY?.trim() ?? "0") !== "0";
 
 await mkdir(dataDir, { recursive: true });
 
@@ -37,19 +41,19 @@ const coordinator = new PazaakCoordinator(undefined, {
 
 const { server, listen } = createApiServer(coordinator, {
   port,
-  discordAppId: "local-dev",
-  discordClientSecret: undefined,
-  activityOrigin: "http://localhost:5173",
-  publicWebOrigin: "http://localhost:5173",
+  discordAppId: process.env.PAZAAK_DISCORD_APP_ID?.trim() || "local-dev",
+  discordClientSecret: process.env.PAZAAK_DISCORD_CLIENT_SECRET?.trim(),
+  activityOrigin,
+  publicWebOrigin,
   accountRepository,
   walletRepository,
   sideboardRepository,
   matchmakingQueueRepository: queueRepository,
   lobbyRepository,
   matchHistoryRepository: historyRepository,
+  pazaakRequiresOwnershipProof,
   matchmakingTickMs: 250,
   allowDevAuth: true,
-  pazaakRequiresOwnershipProof: false,
 });
 
 listen();
@@ -63,6 +67,6 @@ const shutdown = () => {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-console.log(`[webui-test] API server listening on http://localhost:${port}`);
-console.log("[webui-test] Use tokens like Bearer dev-user-player-a via the frontend ?devUser=player-a query parameter.");
-console.log("[webui-test] Guest path: POST /api/auth/ensure-guest with { guestId: \"guest-...\" }.");
+console.log(`[pazaak-api] listening on http://127.0.0.1:${port}`);
+console.log(`[pazaak-api] data dir: ${dataDir}`);
+console.log("[pazaak-api] Dev auth on — use ?devUser=player-a / player-b, or guest ensure-guest.");

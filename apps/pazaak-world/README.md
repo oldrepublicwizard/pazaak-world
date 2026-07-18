@@ -1,8 +1,10 @@
 # pazaak-world
 
-Discord Embedded App Activity for the Pazaak Bot. Runs inside a Discord Activity iframe using the
-[@discord/embedded-app-sdk](https://github.com/discord/embedded-app-sdk), and talks to the
-embedded HTTP/WebSocket server that runs inside the `pazaak-bot` process.
+Holowan Multiplayer Pazaak browser client. Runs as a standalone SPA (GitHub Pages) and as a
+Discord Embedded App Activity. Talks to the HTTP/WebSocket API from `pazaak-bot` (or the
+Cloudflare matchmaking Worker).
+
+Live: https://oldrepublicwizard.github.io/pazaak-world/
 
 ## Stack
 
@@ -10,59 +12,51 @@ embedded HTTP/WebSocket server that runs inside the `pazaak-bot` process.
 - Tailwind CSS v4 (via `@tailwindcss/vite`)
 - `@discord/embedded-app-sdk` for OAuth2 and Activity lifecycle
 
-## Development
+## Local development (recommended)
+
+API-only backend (no Discord tokens required):
 
 ```bash
-# From repo root — starts the Vite dev server on http://localhost:5173
+# Terminal 1 — matchmaking + auth API on :4001
+pnpm dev:pazaak-api
+
+# Terminal 2 — Vite SPA on :5173 (proxies /api and /ws to :4001)
 pnpm dev:pazaak-world
 ```
 
-The dev server proxies `/api` and `/ws` to `http://localhost:4001`, which is the embedded API
-server inside the running `pazaak-bot` process. Start the bot first:
+Open two browsers:
+
+- http://localhost:5173/?devUser=player-a
+- http://localhost:5173/?devUser=player-b
+
+Then use **Find Match** on both. Guests without `?devUser=` call `POST /api/auth/ensure-guest`.
+
+Full Discord bot (requires secrets from `.env.example`):
 
 ```bash
-pnpm --filter @pazaak/pazaak-bot dev
+pnpm dev:pazaak
+pnpm dev:pazaak-world
 ```
 
-## Routes and Operator Console
+Or set `PAZAAK_API_ONLY=1` so `pnpm dev:pazaak` starts the API and skips Discord gateway login.
 
-- `/bots` renders the public Discord bots hub (invites, docs, Web UI links).
-- `/community-bots` renders the OpenKOTOR Bots operator console (API probes, runbooks).
-- `/bots/pazaakworld` renders the PazaakWorld game surface.
-- The operator console can probe API targets, build `VITE_API_BASES`, copy endpoint snippets,
-  export an OpenAPI-style sketch, filter bot surfaces, track readiness checks, and show setup or
-  maintenance runbooks for the embedded API, Cloudflare Worker fallback, OAuth, Pages, and ingest
-  worker flows.
+## GitHub Pages
 
-For local multiplayer or signed API probes, run the Pazaak bot first so `http://localhost:4001`
-is available, then use the console's Primary API origin field to select that target.
+Static hosting has no reverse proxy. Multiplayer needs HTTPS API bases at build time:
 
-## Environment
+- Repo variable `PAZAAK_API_BASES` → baked into `VITE_API_BASES`
+- OAuth callbacks must hit the Worker/bot host, never `*.github.io/.../api/...`
 
-Create `.env` (copy `.env.example`) and fill in:
+Without `PAZAAK_API_BASES`, Match / Lobby stay disabled and local AI remains playable.
 
-```env
-VITE_DISCORD_CLIENT_ID=<your Discord application ID>
-```
+See `docs/ops/holowan-oauth-and-api-bases.md`.
 
-## Account Sessions
+## Account sessions
 
-The Activity now uses a Pazaak app session token for API calls. In Discord Activity mode,
-`/api/auth/token` still exchanges the Discord OAuth2 code and returns the Discord access token
-needed by the Embedded App SDK, but it also creates/returns an `app_token` backed by the bot API's
-account repository. Existing Discord-linked wallets remain compatible because the bridge preserves
-the Discord user ID as the legacy game identity during migration.
-
-Standalone browser mode can use:
-
-- `POST /api/auth/register` with `username`, optional `displayName`/`email`, and `password`.
-- `POST /api/auth/login` with `identifier` and `password`.
-- `GET /api/auth/session` with `Authorization: Bearer <app_token>`.
-- `POST /api/auth/logout` with `Authorization: Bearer <app_token>`.
-
-The first implementation stores this bridge in `accounts.json` next to the existing Pazaak JSON
-repositories while the new Drizzle schema is introduced. The production target is PostgreSQL via the
-schema exports in `@pazaak/persistence`.
+- `POST /api/auth/ensure-guest` — browser guest id → app session
+- `POST /api/auth/register` / `login` — password accounts
+- `GET /api/auth/session` — Bearer app token
+- Discord Activity still uses `/api/auth/token` for the Embedded App SDK exchange
 
 ## Build
 
@@ -70,71 +64,9 @@ schema exports in `@pazaak/persistence`.
 pnpm --filter pazaak-world build
 ```
 
-Deploy `dist/` to any static host. The canonical production URL is
-`https://pazaak.github.io/community-bots/pazaakworld`; register that URL in the Discord Developer Portal
-(Activities -> URL Mappings) and use it for `PAZAAK_ACTIVITY_URL` plus `PAZAAK_PUBLIC_WEB_ORIGIN`.
+Deploy `dist/` to any static host. Canonical production URL:
 
-## React Compiler
+`https://oldrepublicwizard.github.io/pazaak-world/`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Register that URL in the Discord Developer Portal (Activities → URL Mappings) and use it for
+`PAZAAK_ACTIVITY_URL` plus `PAZAAK_PUBLIC_WEB_ORIGIN`.

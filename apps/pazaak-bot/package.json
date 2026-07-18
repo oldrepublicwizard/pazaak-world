@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "tsx src/main.ts",
+    "dev:api": "tsx src/api-only.ts",
     "start": "node dist/main.js"
   },
   "dependencies": {

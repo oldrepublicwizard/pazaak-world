@@ -177,7 +177,7 @@ export const LocalBlackjackGame = ({ username, onExit }: LocalBlackjackGameProps
       <header className="hero-card">
         <p className="label">CardWorld</p>
         <h1>Blackjack Practice</h1>
-        <p className="muted">{username}, local AI Pazaak is available from Match Hub. Upload chitin.key only if you want online Match / Lobby unlock.</p>
+        <p className="muted">{username}, local AI Pazaak is available from Match Hub. Online Match / Lobby need a live API; chitin.key is only required when the server re-enables ownership proof.</p>
       </header>
 
       <section className="panel-stack">

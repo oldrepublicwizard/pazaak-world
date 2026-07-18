@@ -19,7 +19,16 @@ test("loadPazaakBotConfig defaults to Holowan Pages origin", () => {
   assert.equal(cfg.publicWebOrigin, "https://oldrepublicwizard.github.io/pazaak-world/");
   assert.equal(cfg.apiPort, 4001);
   assert.equal(cfg.allowDevAuth, false);
+  assert.equal(cfg.apiOnly, false);
   assert.equal(cfg.dataDir, "data/pazaak-bot");
+});
+
+test("loadPazaakBotConfig PAZAAK_API_ONLY softens Discord and enables dev auth", () => {
+  const cfg = loadPazaakBotConfig({ PAZAAK_API_ONLY: "true" });
+  assert.equal(cfg.apiOnly, true);
+  assert.equal(cfg.allowDevAuth, true);
+  assert.equal(cfg.discord.appId, "local-dev");
+  assert.equal(cfg.discord.botToken, "local-dev-no-discord");
 });
 
 test("loadPazaakBotConfig honors env overrides", () => {

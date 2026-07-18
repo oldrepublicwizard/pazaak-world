@@ -1500,6 +1500,9 @@ function ModeSelectionScreen({
   onOpenTournaments: () => void;
   isOnline?: boolean;
 }) {
+  /** Pages builds with empty VITE_API_BASES have no multiplayer origin — don't pretend navigator.onLine is enough. */
+  const hasConfiguredApi = Boolean(getPrimaryBrowserApiOrigin());
+  const canUseOnlineMultiplayer = isOnline && hasConfiguredApi && isPazaakUnlocked;
   const [showRulebook, setShowRulebook] = useState(false);
   const [localDifficulty, setLocalDifficulty] = useState<AdvisorDifficulty>(() => {
     try {
@@ -1634,12 +1637,19 @@ function ModeSelectionScreen({
           >
             Upload <code>chitin.key</code> in <strong>Settings</strong> (⚙) → CardWorld Access to unlock online Match / Lobby.
           </p>
+        ) : !hasConfiguredApi ? (
+          <p
+            className="pazaak-world-card__notice"
+            style={{ textAlign: "center", margin: "0 auto 1rem", maxWidth: "36rem" }}
+          >
+            Local AI Pazaak is ready. Online Match / Lobby need an API origin (local <code>pnpm dev:pazaak-api</code> or Pages <code>PAZAAK_API_BASES</code>).
+          </p>
         ) : !isOnline ? (
           <p
             className="pazaak-world-card__notice"
             style={{ textAlign: "center", margin: "0 auto 1rem", maxWidth: "36rem" }}
           >
-            Local AI Pazaak is ready. Online Match / Lobby need an API origin (`PAZAAK_API_BASES` / live bot or Worker).
+            Browser is offline. Local AI still works; reconnect for Match / Lobby.
           </p>
         ) : null}
 
@@ -1686,43 +1696,51 @@ function ModeSelectionScreen({
           ) : null}
 
           {quickMatchCard ? (
-            <article className={`pazaak-world-card pazaak-world-card--online ${isOnline ? "" : "pazaak-world-card--disabled"}`}>
+            <article className={`pazaak-world-card pazaak-world-card--online ${canUseOnlineMultiplayer ? "" : "pazaak-world-card--disabled"}`}>
               <h2>
                 <span aria-hidden="true">{menuIcon(quickMatchCard.icon)}</span>
                 {quickMatchCard.title}
-                {!isOnline ? <small>Offline</small> : null}
+                {!hasConfiguredApi ? <small>No API</small> : !isOnline ? <small>Offline</small> : null}
               </h2>
               <p>{quickMatchCard.description}</p>
               <div className="pazaak-world-card__actions">
-                <button className="pazaak-world-button pazaak-world-button--galaxy" onClick={() => onQuickMatch(quickQueuePlayers)} disabled={!isOnline || !isPazaakUnlocked}>
+                <button className="pazaak-world-button pazaak-world-button--galaxy" onClick={() => onQuickMatch(quickQueuePlayers)} disabled={!canUseOnlineMultiplayer}>
                   <span aria-hidden="true">{menuIcon(quickMatchCard.primaryAction?.icon ?? "search")}</span>
                   {quickMatchCard.primaryAction?.label ?? "Find Match"}
                 </button>
-                {!isOnline ? <p className="pazaak-world-card__notice">{quickMatchCard.offlineNotice}</p> : null}
-                {isOnline && !isPazaakUnlocked ? <p className="pazaak-world-card__notice">Pazaak queue unlock requires chitin.key.</p> : null}
+                {!hasConfiguredApi ? (
+                  <p className="pazaak-world-card__notice">API not configured for this build. Use local Vite + <code>pnpm dev:pazaak-api</code>, or set <code>PAZAAK_API_BASES</code> for Pages.</p>
+                ) : !isOnline ? (
+                  <p className="pazaak-world-card__notice">{quickMatchCard.offlineNotice}</p>
+                ) : null}
+                {hasConfiguredApi && isOnline && !isPazaakUnlocked ? <p className="pazaak-world-card__notice">Pazaak queue unlock requires chitin.key.</p> : null}
               </div>
             </article>
           ) : null}
 
           {lobbyCard ? (
-            <article className={`pazaak-world-card pazaak-world-card--lobby ${isOnline ? "" : "pazaak-world-card--disabled"}`}>
+            <article className={`pazaak-world-card pazaak-world-card--lobby ${canUseOnlineMultiplayer ? "" : "pazaak-world-card--disabled"}`}>
               <h2>
                 <span aria-hidden="true">{menuIcon(lobbyCard.icon)}</span>
                 {lobbyCard.title}
-                {!isOnline ? <small>Offline</small> : null}
+                {!hasConfiguredApi ? <small>No API</small> : !isOnline ? <small>Offline</small> : null}
               </h2>
               <p>{lobbyCard.description}</p>
               <div className="pazaak-world-card__actions">
-                <button className="pazaak-world-button pazaak-world-button--hyperspace" onClick={onOpenLobbies} disabled={!isOnline || !isPazaakUnlocked}>
+                <button className="pazaak-world-button pazaak-world-button--hyperspace" onClick={onOpenLobbies} disabled={!canUseOnlineMultiplayer}>
                   <span aria-hidden="true">{menuIcon(lobbyCard.primaryAction?.icon ?? "plus")}</span>
                   {lobbyCard.primaryAction?.label ?? "Create Lobby"}
                 </button>
-                <button className="pazaak-world-button pazaak-world-button--outline" onClick={onOpenLobbies} disabled={!isOnline || !isPazaakUnlocked}>
+                <button className="pazaak-world-button pazaak-world-button--outline" onClick={onOpenLobbies} disabled={!canUseOnlineMultiplayer}>
                   <span aria-hidden="true">{menuIcon(lobbyCard.secondaryAction?.icon ?? "signin")}</span>
                   {lobbyCard.secondaryAction?.label ?? "Join Lobby"}
                 </button>
-                {!isOnline ? <p className="pazaak-world-card__notice">{lobbyCard.offlineNotice}</p> : null}
-                {isOnline && !isPazaakUnlocked ? <p className="pazaak-world-card__notice">Lobby access unlock requires chitin.key.</p> : null}
+                {!hasConfiguredApi ? (
+                  <p className="pazaak-world-card__notice">API not configured for this build. Use local Vite + <code>pnpm dev:pazaak-api</code>, or set <code>PAZAAK_API_BASES</code> for Pages.</p>
+                ) : !isOnline ? (
+                  <p className="pazaak-world-card__notice">{lobbyCard.offlineNotice}</p>
+                ) : null}
+                {hasConfiguredApi && isOnline && !isPazaakUnlocked ? <p className="pazaak-world-card__notice">Lobby access unlock requires chitin.key.</p> : null}
               </div>
             </article>
           ) : null}

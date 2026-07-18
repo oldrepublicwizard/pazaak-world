@@ -97,6 +97,11 @@ export interface PazaakBotConfig {
   matchmakingTickMs: number;
   /** Enables local synthetic Bearer tokens (dev-user-*) for browser-only testing. */
   allowDevAuth: boolean;
+  /**
+   * HTTP/WS API only — skip Discord gateway login and allow missing Discord secrets.
+   * Prefer `pnpm dev:pazaak-api` for local multiplayer without a Discord application.
+   */
+  apiOnly: boolean;
   /** Unified YAML/JSON/env ops policy (`PAZAAK_POLICY_PATH`, `PAZAAK_POLICY_JSON`, `PAZAAK_POLICY__*` ). */
   opsPolicy: PazaakOpsPolicy;
 }
@@ -127,7 +132,18 @@ export const loadPazaakOpsPolicyForNode = (env: NodeJS.ProcessEnv = process.env)
 export const loadDiscordRuntimeConfig = (
   prefix: string,
   env: NodeJS.ProcessEnv = process.env,
+  options: { allowMissing?: boolean | undefined } = {},
 ): DiscordRuntimeConfig => {
+  if (options.allowMissing) {
+    return {
+      appId: readOptionalEnv(`${prefix}_DISCORD_APP_ID`, env) ?? "local-dev",
+      clientSecret: readOptionalEnv(`${prefix}_DISCORD_CLIENT_SECRET`, env),
+      publicKey: readOptionalEnv(`${prefix}_DISCORD_PUBLIC_KEY`, env) ?? "local-dev",
+      botToken: readOptionalEnv(`${prefix}_DISCORD_BOT_TOKEN`, env) ?? "local-dev-no-discord",
+      guildId: readOptionalEnv(`${prefix}_DISCORD_GUILD_ID`, env) ?? readOptionalEnv("DISCORD_TARGET_GUILD_ID", env),
+    };
+  }
+
   return {
     appId: readRequiredEnv(`${prefix}_DISCORD_APP_ID`, env),
     clientSecret: readOptionalEnv(`${prefix}_DISCORD_CLIENT_SECRET`, env),
@@ -139,8 +155,10 @@ export const loadDiscordRuntimeConfig = (
 
 export const loadPazaakBotConfig = (env: NodeJS.ProcessEnv = process.env): PazaakBotConfig => {
   const opsPolicy = loadPazaakOpsPolicyForNode(env);
+  const apiOnly = readBooleanEnv("PAZAAK_API_ONLY", env) ?? false;
+  const allowDevAuth = (readBooleanEnv("PAZAAK_ALLOW_DEV_AUTH", env) ?? false) || apiOnly;
   return {
-    discord: loadDiscordRuntimeConfig("PAZAAK", env),
+    discord: loadDiscordRuntimeConfig("PAZAAK", env, { allowMissing: apiOnly }),
     dataDir: readOptionalEnv("PAZAAK_DATA_DIR", env) ?? "data/pazaak-bot",
     startingCredits: integerish.parse(readOptionalEnv("PAZAAK_STARTING_CREDITS", env) ?? "1000"),
     dailyBonusCredits: integerish.parse(readOptionalEnv("PAZAAK_DAILY_BONUS", env) ?? "200"),
@@ -152,7 +170,8 @@ export const loadPazaakBotConfig = (env: NodeJS.ProcessEnv = process.env): Pazaa
     turnTimerSeconds: opsPolicy.timers.turnTimerSeconds,
     disconnectForfeitMs: opsPolicy.timers.disconnectForfeitMs,
     matchmakingTickMs: opsPolicy.matchmaking.tickMs,
-    allowDevAuth: readBooleanEnv("PAZAAK_ALLOW_DEV_AUTH", env) ?? false,
+    allowDevAuth,
+    apiOnly,
     opsPolicy,
   };
 };

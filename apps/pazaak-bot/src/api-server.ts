@@ -1079,6 +1079,36 @@ export function createApiServer(
     res.json({ app_token: appToken, token_type: "Bearer", ...(await serializeSession(opts.accountRepository, record.account, session)) });
   });
 
+  /**
+   * POST /api/auth/ensure-guest
+   * Exchanges a browser localStorage guest id for a signed app session (Worker parity).
+   */
+  app.post("/api/auth/ensure-guest", async (req, res): Promise<void> => {
+    const body = req.body as JsonObject & { guestId?: JsonValue };
+    const guestId = typeof body.guestId === "string" ? body.guestId.trim() : "";
+    if (!guestId || !/^guest-[\w-]{8,64}$/u.test(guestId)) {
+      res.status(400).json({ error: "Valid guestId is required" });
+      return;
+    }
+
+    try {
+      const account = await opts.accountRepository.ensureGuestAccount(guestId);
+      const { token: appToken, session } = await opts.accountRepository.createSession(account.accountId, {
+        expiresAt: getSessionExpiresAt(),
+        label: "Guest",
+      });
+      res.json({
+        app_token: appToken,
+        token_type: "Bearer",
+        displayName: account.displayName,
+        userId: account.accountId,
+        ...(await serializeSession(opts.accountRepository, account, session)),
+      });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
   app.get("/api/auth/session", withAuth(async (_req, res, user) => {
     const account = await opts.accountRepository.getAccount(user.accountId);
     if (!account) {

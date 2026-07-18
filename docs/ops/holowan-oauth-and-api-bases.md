@@ -14,6 +14,18 @@ tags:
 
 # Holowan OAuth + `PAZAAK_API_BASES` cutover
 
+## Local multiplayer without Discord
+
+```bash
+pnpm dev:pazaak-api          # :4001 HTTP/WS, ensure-guest + Match/Lobby
+pnpm dev:pazaak-world        # :5173 Vite (proxies /api → :4001)
+# Open two tabs: ?devUser=player-a and ?devUser=player-b → Find Match
+```
+
+`POST /api/auth/ensure-guest` (bot + Worker) upgrades browser `guest-*` ids to app sessions so guest Match works without OAuth.
+
+---
+
 ## Why this exists
 
 Live SPA is on GitHub Pages (`oldrepublicwizard.github.io/pazaak-world`). Pages is **static** — it cannot receive OAuth callbacks or serve `/api/*`. Multiplayer and sign-in need a separate API origin (pazaak-bot or `pazaak-matchmaking` Worker).

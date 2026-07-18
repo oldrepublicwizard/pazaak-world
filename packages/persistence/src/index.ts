@@ -285,6 +285,11 @@ export interface PazaakAccountRepositoryContract {
     email?: string | null | undefined;
     legacyGameUserId?: string | null | undefined;
   }): Promise<{ account: PazaakAccountRecord; identity: PazaakLinkedIdentityRecord }>;
+  /**
+   * Stable guest account for browser `guest-*` localStorage ids (Worker parity: `guest:${guestId}`).
+   * Guests have no privileged capabilities; the id is the sole authenticator.
+   */
+  ensureGuestAccount(guestId: string): Promise<PazaakAccountRecord>;
   linkDiscordAccount(accountId: string, input: {
     discordUserId: string;
     username: string;
@@ -400,6 +405,35 @@ export class JsonPazaakAccountRepository implements PazaakAccountRepositoryContr
       displayName: input.displayName,
       legacyGameUserId: input.discordUserId,
     });
+  }
+
+  public async ensureGuestAccount(guestId: string): Promise<PazaakAccountRecord> {
+    const trimmed = guestId.trim();
+    if (!trimmed || !/^guest-[\w-]{8,64}$/u.test(trimmed)) {
+      throw new Error("Valid guestId is required.");
+    }
+
+    const state = await this.ensureState();
+    const accountId = `guest:${trimmed}`;
+    const existing = state.accounts[accountId];
+    if (existing) {
+      return cloneAccount(existing);
+    }
+
+    const now = new Date().toISOString();
+    const username = createUniqueAccountUsername(state, trimmed.slice(0, 28));
+    const account: PazaakAccountRecord = {
+      accountId,
+      username,
+      displayName: "Guest Pilot",
+      email: null,
+      legacyGameUserId: trimmed,
+      createdAt: now,
+      updatedAt: now,
+    };
+    state.accounts[accountId] = account;
+    await this.persist(state);
+    return cloneAccount(account);
   }
 
   public async ensureExternalAccount(input: {

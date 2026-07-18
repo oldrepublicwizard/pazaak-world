@@ -3413,4 +3413,11 @@ const { listen: startApiServer } = createApiServer(coordinator, {
 });
 startApiServer();
 
-await client.login(config.discord.botToken);
+if (config.apiOnly) {
+  logger.info("PAZAAK_API_ONLY set — HTTP/WS API running; skipping Discord gateway login.", {
+    apiPort: config.apiPort,
+    allowDevAuth: config.allowDevAuth,
+  });
+} else {
+  await client.login(config.discord.botToken);
+}

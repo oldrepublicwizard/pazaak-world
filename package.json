@@ -14,7 +14,9 @@
     "check:pazaak-oauth": "node scripts/check_pazaak_oauth_readiness.mjs",
     "check:pazaak-oauth:checklist": "node scripts/check_pazaak_oauth_readiness.mjs --checklist",
     "dev:pazaak": "pnpm --filter @pazaak/pazaak-bot dev",
+    "dev:pazaak-api": "pnpm --filter @pazaak/pazaak-bot dev:api",
     "dev:pazaak-world": "pnpm --filter pazaak-world dev",
+    "test:pazaak-webui-e2e": "node scripts/test_pazaak_webui_e2e_playwright.mjs",
     "dev:pazaak-nakama": "pnpm --filter @pazaak/pazaak-nakama build && docker compose -f infra/nakama/docker-compose.yml up",
     "build:pazaak-nakama": "pnpm --filter @pazaak/pazaak-nakama build"
   },
