@@ -5,7 +5,7 @@ import {
   type SerializedMatch,
   deserializeMatch,
   serializeMatch,
-} from "@openkotor/pazaak-engine";
+} from "@pazaak/pazaak-engine";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

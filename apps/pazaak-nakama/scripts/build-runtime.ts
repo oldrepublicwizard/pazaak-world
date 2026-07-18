@@ -20,7 +20,7 @@ const options: esbuild.BuildOptions = {
   // Nakama's loader parses the program AST and requires a top-level `function InitModule` (not inside an IIFE).
   format: "cjs",
   alias: {
-    "@openkotor/pazaak-tournament": resolve(repoRoot, "packages/pazaak-tournament/src/nakama-entry.ts"),
+    "@pazaak/pazaak-tournament": resolve(repoRoot, "packages/pazaak-tournament/src/nakama-entry.ts"),
     "node:crypto": resolve(dirname(fileURLToPath(import.meta.url)), "node-crypto-stub.ts"),
   },
   // Nakama loads the single JS file only; an external .map next to it causes startup failure.

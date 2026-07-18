@@ -14,10 +14,10 @@
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.4.1",
     "@heroiclabs/nakama-js": "^2.8.0",
-    "@openkotor/blackjack-engine": "workspace:*",
-    "@openkotor/pazaak-engine": "workspace:*",
-    "@openkotor/modsync-tokens": "workspace:*",
-    "@openkotor/platform": "workspace:*",
+    "@pazaak/blackjack-engine": "workspace:*",
+    "@pazaak/pazaak-engine": "workspace:*",
+    "@pazaak/modsync-tokens": "workspace:*",
+    "@pazaak/platform": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

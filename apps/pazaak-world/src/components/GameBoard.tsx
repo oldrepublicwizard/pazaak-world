@@ -16,7 +16,7 @@ import type {
 import type { ChatMessage, MatchSocketConnectionState } from "../api.ts";
 import { draw, stand, endTurn, playSideCard, forfeit, fetchMe } from "../api.ts";
 import { getAdvisorSnapshot, getSideCardOptions, WIN_SCORE, SETS_TO_WIN } from "../game-utils.ts";
-import { getCardReference, normalizeSideDeckToken } from "@openkotor/pazaak-engine";
+import { getCardReference, normalizeSideDeckToken } from "@pazaak/pazaak-engine";
 import { QuickSideboardSwitcher } from "./QuickSideboardSwitcher.tsx";
 
 const describeCardTooltip = (rawLabel: string): string => {

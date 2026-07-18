@@ -16,8 +16,8 @@
 
 import type http from "node:http";
 import { randomUUID } from "node:crypto";
-import type { AiDifficulty, PazaakCoordinator, PazaakMatch, SideDeckChoice } from "@openkotor/pazaak-engine";
-import { MAIN_MENU_PRESET, SIDE_DECK_SIZE, assertCustomSideDeckTokenLimits, getDefaultPazaakOpponentForAdvisorDifficulty, normalizeSideDeckToken, pickWinStreakBonusToken, pazaakOpponents, playerAt, rollCrateContents, serializeMatch } from "@openkotor/pazaak-engine";
+import type { AiDifficulty, PazaakCoordinator, PazaakMatch, SideDeckChoice } from "@pazaak/pazaak-engine";
+import { MAIN_MENU_PRESET, SIDE_DECK_SIZE, assertCustomSideDeckTokenLimits, getDefaultPazaakOpponentForAdvisorDifficulty, normalizeSideDeckToken, pickWinStreakBonusToken, pazaakOpponents, playerAt, rollCrateContents, serializeMatch } from "@pazaak/pazaak-engine";
 import {
   buildBrowserCorsAllowedOrigins,
   buildSocialAuthAuthorizeUrl,
@@ -38,7 +38,7 @@ import {
   type CardGameType,
   type CardWorldConfig,
   type SocialAuthProvider,
-} from "@openkotor/platform";
+} from "@pazaak/platform";
 import {
   createOptionalAuthHandler,
   createRequiredAuthHandler,
@@ -49,12 +49,9 @@ import {
   type AuthResolver,
   type BearerAuthContext,
   type NormalizedAuthHandlerError,
-} from "@openkotor/platform/auth";
-import { InMemoryTopicMessageStore, JsonWebSocketHub } from "@openkotor/platform/node-ws";
-import { hashPazaakPassword, verifyPazaakPassword } from "@openkotor/persistence";
-import type { SearchProvider } from "@openkotor/retrieval";
-import { createTraskHttpRouter } from "@openkotor/trask-http";
-import type { WebResearchClient } from "@openkotor/trask";
+} from "@pazaak/platform/auth";
+import { InMemoryTopicMessageStore, JsonWebSocketHub } from "@pazaak/platform/node-ws";
+import { hashPazaakPassword, verifyPazaakPassword } from "@pazaak/persistence";
 import type {
   PazaakLobbyRecord,
   PazaakAccountRepositoryContract,
@@ -62,7 +59,6 @@ import type {
   JsonPazaakMatchHistoryRepository,
   JsonPazaakMatchmakingQueueRepository,
   JsonPazaakSideboardRepository,
-  JsonTraskQueryRepository,
   JsonWalletRepository,
   PazaakAccountRecord,
   PazaakAccountSessionRecord,
@@ -75,9 +71,9 @@ import type {
   PazaakTableTheme,
   PazaakLobbySideboardMode,
   PazaakUserSettings,
-} from "@openkotor/persistence";
+} from "@pazaak/persistence";
 import express, { type Request, type Response, type NextFunction } from "express";
-import { cloneDefaultPolicy, toPublicConfig, type PazaakOpsPolicy } from "@openkotor/pazaak-policy";
+import { cloneDefaultPolicy, toPublicConfig, type PazaakOpsPolicy } from "@pazaak/pazaak-policy";
 
 import { buildMatchMilestoneUpdates } from "./milestone-grants.js";
 
@@ -273,11 +269,6 @@ export function createApiServer(
     matchmakingQueueRepository: JsonPazaakMatchmakingQueueRepository;
     lobbyRepository: JsonPazaakLobbyRepository;
     matchHistoryRepository: JsonPazaakMatchHistoryRepository;
-    trask?: {
-      searchProvider: SearchProvider;
-      webResearch: WebResearchClient;
-      queryRepository: JsonTraskQueryRepository;
-    } | undefined;
     botGameType?: CardGameType | undefined;
     pazaakRequiresOwnershipProof?: boolean | undefined;
     matchmakingTickMs?: number | undefined;
@@ -416,13 +407,6 @@ export function createApiServer(
   // Helper: extract a string path param (Express 5 params can be string | string[]).
   const param = (req: Request, name: string): string => String(req.params[name] ?? "");
 
-  app.use(
-    "/api/trask",
-    createTraskHttpRouter({
-      runtime: opts.trask,
-      auth: { requireAuth: withAuth },
-    }),
-  );
 
   const normalizeSideboardTokens = (value: JsonValue | undefined): string[] => {
     if (!Array.isArray(value) || value.length !== SIDE_DECK_SIZE) {

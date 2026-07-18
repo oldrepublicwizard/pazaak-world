@@ -14,7 +14,7 @@ let accountCounter = 0;
 
 const log = (...args) => console.log("[matrix]", ...args);
 
-/** Python-style `%` with non-negative remainder (matches @openkotor/pazaak-engine). */
+/** Python-style `%` with non-negative remainder (matches @pazaak/pazaak-engine). */
 function modPythonStyle(a, modulus) {
   if (modulus <= 0) {
     throw new Error("modulus must be positive");

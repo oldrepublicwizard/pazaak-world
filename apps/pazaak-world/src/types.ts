@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Serialized match types — mirrors @openkotor/pazaak-engine SerializedMatch
+// Serialized match types — mirrors @pazaak/pazaak-engine SerializedMatch
 // but is safe to import in the browser (no node:crypto dependency).
 // ---------------------------------------------------------------------------
 
-import type { PazaakOpponentDifficulty, PazaakOpponentPhraseKey } from "@openkotor/pazaak-engine/opponents";
+import type { PazaakOpponentDifficulty, PazaakOpponentPhraseKey } from "@pazaak/pazaak-engine/opponents";
 
 export type SideCardType =
   | "plus"
@@ -318,7 +318,7 @@ export interface LeaderboardEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Tournament records — mirrors @openkotor/pazaak-tournament shapes so the
+// Tournament records — mirrors @pazaak/pazaak-tournament shapes so the
 // Activity can consume them directly without bundling node:crypto.
 // ---------------------------------------------------------------------------
 

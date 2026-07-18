@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { MAIN_MENU_PRESET, type MainMenuIconKey, type MainMenuModeCardPreset, type MainMenuAiOptionPreset, type MainMenuRulePreset } from "@openkotor/pazaak-engine/menu-preset";
+import { MAIN_MENU_PRESET, type MainMenuIconKey, type MainMenuModeCardPreset, type MainMenuAiOptionPreset, type MainMenuRulePreset } from "@pazaak/pazaak-engine/menu-preset";
 import type {
   AdvisorDifficulty,
   LeaderboardEntry,
@@ -60,7 +60,6 @@ import {
   subscribeToMatch,
   sendChatMessage,
   type ChatMessage,
-  probeTraskAvailable,
   bootstrapNakamaActivitySession,
   isNakamaBackend,
 } from "./api.ts";
@@ -70,9 +69,6 @@ import { LocalPracticeGame } from "./components/LocalPracticeGame.tsx";
 import { QuickSideboardSwitcher } from "./components/QuickSideboardSwitcher.tsx";
 import { SideboardWorkshop } from "./components/SideboardWorkshop.tsx";
 import { GlobalAccountCorner } from "./components/GlobalAccountCorner.tsx";
-import { CommunityBotsDashboard } from "./components/CommunityBotsDashboard.tsx";
-import { DiscordBotsHub } from "./components/DiscordBotsHub.tsx";
-import { TraskScreen } from "./components/TraskScreen.tsx";
 import { TournamentHub } from "./components/TournamentHub.tsx";
 import { HowToPlayPanel } from "./components/HowToPlayPanel.tsx";
 import { formatWalletRatingLine } from "./utils/ratingLabels.ts";
@@ -80,8 +76,8 @@ import { shellPresetFromTableTheme } from "./kotorShell.ts";
 import { soundManager } from "./utils/soundManager.ts";
 import { ConnectionStatus } from "./components/ConnectionStatus.tsx";
 import { subscribeToActivityRelay, type ActivityRelayConnectionState, type ActivityRelayMember } from "./activityRelay.ts";
-import type { CardWorldConfig } from "@openkotor/platform";
-import { discordHubRoute, pazaakWorldRoute } from "./deployRoutes.ts";
+import type { CardWorldConfig } from "@pazaak/platform";
+import { pazaakWorldRoute } from "./deployRoutes.ts";
 import { isGuestLikeAccessToken, nakamaGuestUsername } from "./nakamaClient.ts";
 
 const STANDALONE_AUTH_TOKEN_KEY = "pazaak-world-standalone-auth-token-v1";
@@ -493,24 +489,8 @@ const isPazaakWorldRoute = (): boolean => {
   return LEGACY_PAZAAK_WORLD_ROUTE_BASES.some((base) => pathname === base || pathname.startsWith(`${base}/`));
 };
 
-const isDiscordBotsHubRoute = (): boolean => {
-  const pathname = normalizePathname();
-  const hub = discordHubRoute();
-  if (pathname === hub || pathname === `${hub}/`) {
-    return true;
-  }
-
-  return LEGACY_DISCORD_HUB_ROUTE_BASES.some((base) => pathname === base || pathname === `${base}/`);
-};
-
 export default function App() {
-  if (isPazaakWorldRoute()) {
-    return <PazaakWorldApp />;
-  }
-  if (isDiscordBotsHubRoute()) {
-    return <DiscordBotsHub />;
-  }
-  return <CommunityBotsDashboard />;
+  return <PazaakWorldApp />;
 }
 
 // ---------------------------------------------------------------------------
@@ -529,7 +509,6 @@ type AppState =
   | { stage: "workshop"; auth: ActivitySession; returnTo: "lobby" | "game"; match?: SerializedMatch }
   | { stage: "game"; auth: ActivitySession; match: SerializedMatch }
   | { stage: "tournament"; auth: ActivitySession; tournamentId?: string | null }
-  | { stage: "trask"; auth: ActivitySession };
 
 type RequestedPazaakWorldPage = {
   stage: Exclude<AppState["stage"], "loading" | "auth_error">;
@@ -591,8 +570,6 @@ function readRequestedPazaakWorldPage(): RequestedPazaakWorldPage {
       return { stage: "blackjack_game" };
     case "workshop":
       return { stage: "workshop" };
-    case "trask":
-      return { stage: "trask" };
     case "tournaments":
       return { stage: "tournament", tournamentId: tail ? decodeURIComponent(tail).trim() || null : null };
     case "match": {
@@ -626,8 +603,6 @@ function buildPazaakWorldPath(state: AppState): string | null {
       return `${base}/workshop`;
     case "tournament":
       return state.tournamentId ? `${base}/tournaments/${encodeURIComponent(state.tournamentId)}` : `${base}/tournaments`;
-    case "trask":
-      return `${base}/trask`;
     case "game":
       return `${base}/match/${encodeURIComponent(state.match.id)}`;
   }
@@ -647,7 +622,6 @@ function getSessionFromAppState(state: AppState): ActivitySession | null {
     case "workshop":
     case "game":
     case "tournament":
-    case "trask":
       return state.auth;
   }
 }
@@ -673,7 +647,6 @@ function PazaakWorldApp() {
   const [onboardingState, setOnboardingState] = useState<OnboardingState>(loadOnboardingState);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogMessage, setAuthDialogMessage] = useState<string | undefined>();
-  const [traskAvailable, setTraskAvailable] = useState(false);
   const [cardWorldConfig, setCardWorldConfig] = useState<CardWorldConfig>(DEFAULT_CARDWORLD_CONFIG);
   const [ownershipProof, setOwnershipProof] = useState<OwnershipProofRecord | null>(loadOwnershipProof);
 
@@ -727,8 +700,6 @@ function PazaakWorldApp() {
       case "tournament":
         setState({ stage: "tournament", auth: session, tournamentId: requestedPage.tournamentId ?? null });
         return;
-      case "trask":
-        setState({ stage: "trask", auth: session });
         return;
       case "game":
       case "mode_selection":
@@ -1000,21 +971,6 @@ function PazaakWorldApp() {
     };
   }, []);
 
-  // Probe Trask sidecar availability when entering mode_selection.
-  useEffect(() => {
-    if (state.stage !== "mode_selection") return;
-    const token = state.auth.accessToken;
-    let cancelled = false;
-    probeTraskAvailable(token).then((available) => {
-      if (!cancelled) setTraskAvailable(available);
-    }).catch(() => {
-      if (!cancelled) setTraskAvailable(false);
-    });
-    return () => { cancelled = true; };
-  // Re-probe each time the user enters mode_selection (stage change covers token rotation too).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.stage]);
-
   // Update browser tab title based on current stage.
   useEffect(() => {
     const stageTitles: Partial<Record<AppState["stage"], string>> = {
@@ -1029,7 +985,6 @@ function PazaakWorldApp() {
       workshop: "PazaakWorld — Sideboard Workshop",
       game: "PazaakWorld — Match",
       tournament: "PazaakWorld — Tournament Hub",
-      trask: "PazaakWorld — Ask Trask",
     };
     document.title = stageTitles[state.stage] ?? "PazaakWorld";
   }, [state.stage]);
@@ -1275,9 +1230,7 @@ function PazaakWorldApp() {
               ...(opponentId ? { opponentId } : {}),
             }
           : { stage: "blackjack_game", auth: state.auth })}
-        onOpenTrask={() => setState({ stage: "trask", auth: state.auth })}
         onOpenTournaments={() => setState({ stage: "tournament", auth: state.auth, tournamentId: null })}
-        traskAvailable={traskAvailable}
         isOnline={isOnline}
       />
     );
@@ -1358,14 +1311,6 @@ function PazaakWorldApp() {
     );
   }
 
-  if (state.stage === "trask") {
-    return (
-      <TraskScreen
-        accessToken={state.auth.accessToken}
-        onBack={() => setState({ stage: "mode_selection", auth: state.auth })}
-      />
-    );
-  }
 
   if (state.stage === "tournament") {
     return withGlobalAccountCorner(
@@ -1533,9 +1478,7 @@ function ModeSelectionScreen({
   onQuickMatch,
   onStartLocalGame,
   isPazaakUnlocked,
-  onOpenTrask,
   onOpenTournaments,
-  traskAvailable = false,
   isOnline = true,
 }: {
   socketState?: MatchSocketConnectionState;
@@ -1543,9 +1486,7 @@ function ModeSelectionScreen({
   onQuickMatch: (preferredMaxPlayers: number) => void;
   onStartLocalGame: (difficulty: AdvisorDifficulty, opponentId?: string) => void;
   isPazaakUnlocked: boolean;
-  onOpenTrask: () => void;
   onOpenTournaments: () => void;
-  traskAvailable?: boolean;
   isOnline?: boolean;
 }) {
   const [showRulebook, setShowRulebook] = useState(false);
@@ -1663,15 +1604,6 @@ function ModeSelectionScreen({
               onClick={onOpenTournaments}
             >
               <span aria-hidden="true">◈</span> Tournaments
-            </button>
-          )}
-          {traskAvailable && (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={onOpenTrask}
-            >
-              <span aria-hidden="true">◉</span> Ask Trask
             </button>
           )}
         </div>

@@ -1,5 +1,5 @@
 {
-  "name": "@openkotor/pazaak-nakama",
+  "name": "@pazaak/pazaak-nakama",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
     "dev": "tsx scripts/build-runtime.ts --watch"
   },
   "dependencies": {
-    "@openkotor/pazaak-engine": "workspace:*",
-    "@openkotor/pazaak-policy": "workspace:*",
-    "@openkotor/pazaak-rating": "workspace:*",
-    "@openkotor/pazaak-tournament": "workspace:*"
+    "@pazaak/pazaak-engine": "workspace:*",
+    "@pazaak/pazaak-policy": "workspace:*",
+    "@pazaak/pazaak-rating": "workspace:*",
+    "@pazaak/pazaak-tournament": "workspace:*"
   },
   "devDependencies": {
     "esbuild": "^0.27.2",

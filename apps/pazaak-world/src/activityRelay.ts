@@ -1,4 +1,4 @@
-import { subscribeToReconnectingWebSocket } from "@openkotor/platform/browser";
+import { subscribeToReconnectingWebSocket } from "@pazaak/platform/browser";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

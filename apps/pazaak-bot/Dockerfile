@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig
 COPY packages ./packages
 COPY apps/pazaak-bot ./apps/pazaak-bot
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @openkotor/pazaak-bot build
+RUN pnpm --filter @pazaak/pazaak-bot build
 
 FROM base AS runtime
 WORKDIR /workspace

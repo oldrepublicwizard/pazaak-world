@@ -17,9 +17,9 @@ import {
   type StringSelectMenuInteraction,
 } from "discord.js";
 
-import { loadPazaakBotConfig, loadSharedAiConfig, loadWebResearchRuntimeConfig } from "@openkotor/config";
-import { createBotClient, createLogger, deployGuildCommands, toErrorMessage } from "@openkotor/core";
-import { asBulletList, buildErrorEmbed, buildInfoEmbed, buildSuccessEmbed, buildWarningEmbed } from "@openkotor/discord-ui";
+import { loadPazaakBotConfig } from "@pazaak/config";
+import { createBotClient, createLogger, deployGuildCommands, toErrorMessage } from "@pazaak/core";
+import { asBulletList, buildErrorEmbed, buildInfoEmbed, buildSuccessEmbed, buildWarningEmbed } from "@pazaak/discord-ui";
 import {
   DEFAULT_PAZAAK_SIDEBOARD_NAME,
   JsonPazaakAccountRepository,
@@ -27,15 +27,12 @@ import {
   JsonPazaakMatchHistoryRepository,
   JsonPazaakMatchmakingQueueRepository,
   JsonPazaakSideboardRepository,
-  JsonTraskQueryRepository,
   JsonWalletRepository,
   resolveDataFile,
   type RivalryRecord,
-} from "@openkotor/persistence";
-import { personaProfiles } from "@openkotor/personas";
-import { createChunkSearchProvider } from "@openkotor/retrieval";
-import { createWebResearchClient } from "@openkotor/trask";
-import { normalizeCardGameType } from "@openkotor/platform";
+} from "@pazaak/persistence";
+import { personaProfiles } from "@pazaak/personas";
+import { normalizeCardGameType } from "@pazaak/platform";
 
 import {
   CUSTOM_SIDE_DECK_LABEL,
@@ -95,9 +92,6 @@ const sideboardRepository = new JsonPazaakSideboardRepository(resolveDataFile(co
 const matchmakingQueueRepository = new JsonPazaakMatchmakingQueueRepository(resolveDataFile(config.dataDir, "matchmaking-queue.json"));
 const lobbyRepository = new JsonPazaakLobbyRepository(resolveDataFile(config.dataDir, "lobbies.json"));
 const matchHistoryRepository = new JsonPazaakMatchHistoryRepository(resolveDataFile(config.dataDir, "match-history.json"));
-const traskQueryRepository = new JsonTraskQueryRepository(resolveDataFile(config.dataDir, "trask-queries.json"));
-const traskSearchProvider = createChunkSearchProvider(process.env.INGEST_STATE_DIR?.trim() || "data/ingest-worker");
-const traskWebResearch = createWebResearchClient(loadWebResearchRuntimeConfig(), loadSharedAiConfig());
 const cardWorldBotGameType = normalizeCardGameType(process.env.CARDWORLD_BOT_GAME_TYPE?.trim(), "pazaak");
 const pazaakRequiresOwnershipProof = (process.env.CARDWORLD_REQUIRE_CHITIN_KEY?.trim() ?? "1") !== "0";
 const workerSyncUrl = process.env.PAZAAK_WORKER_SYNC_URL?.trim();
@@ -3411,11 +3405,6 @@ const { listen: startApiServer } = createApiServer(coordinator, {
   matchmakingQueueRepository,
   lobbyRepository,
   matchHistoryRepository,
-  trask: {
-    searchProvider: traskSearchProvider,
-    webResearch: traskWebResearch,
-    queryRepository: traskQueryRepository,
-  },
   botGameType: cardWorldBotGameType,
   pazaakRequiresOwnershipProof,
   matchmakingTickMs: config.matchmakingTickMs,

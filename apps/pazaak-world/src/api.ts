@@ -22,14 +22,14 @@ import {
   trimTrailingSlashes,
   type CardWorldConfig,
   type SocialAuthProvider,
-} from "@openkotor/platform";
+} from "@pazaak/platform";
 import {
   createBrowserApiClient,
   parseConfiguredBases,
   resolveBrowserApiBases,
   subscribeToReconnectingWebSocket,
   type RealtimeConnectionState,
-} from "@openkotor/platform/browser";
+} from "@pazaak/platform/browser";
 import { DefaultSocket } from "@heroiclabs/nakama-js";
 import {
   bootstrapNakamaActivitySession,
@@ -237,30 +237,7 @@ export interface LobbyResponse {
   match?: SerializedMatch;
 }
 
-export interface TraskSourceRecord {
-  id: string;
-  name: string;
-  kind: "website" | "github" | "discord";
-  homeUrl: string;
-  description: string;
-  freshnessPolicy: string;
-}
 
-export interface TraskQueryRecord {
-  queryId: string;
-  userId: string;
-  query: string;
-  status: "pending" | "complete" | "failed";
-  answer: string | null;
-  sources: Array<{
-    id: string;
-    name: string;
-    url: string;
-  }>;
-  error: string | null;
-  createdAt: string;
-  completedAt: string | null;
-}
 
 function nakamaUseSsl(): boolean {
   const raw = String(import.meta.env.VITE_NAKAMA_USE_SSL ?? "").toLowerCase().trim();
@@ -1363,32 +1340,9 @@ export async function deleteSideboard(name: string, accessToken: string): Promis
   return data.sideboards;
 }
 
-export async function fetchTraskSources(accessToken: string): Promise<TraskSourceRecord[]> {
-  const data = await apiFetch<{ sources: TraskSourceRecord[] }>("/api/trask/sources", accessToken);
-  return data.sources;
-}
 
-export async function probeTraskAvailable(accessToken: string): Promise<boolean> {
-  try {
-    await fetchTraskSources(accessToken);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
-export async function fetchTraskHistory(accessToken: string, limit = 25): Promise<TraskQueryRecord[]> {
-  const data = await apiFetch<{ history: TraskQueryRecord[] }>(`/api/trask/history?limit=${encodeURIComponent(String(limit))}`, accessToken);
-  return data.history;
-}
 
-export async function askTrask(accessToken: string, query: string): Promise<TraskQueryRecord> {
-  const data = await apiFetch<{ query: TraskQueryRecord }>("/api/trask/ask", accessToken, {
-    method: "POST",
-    body: JSON.stringify({ query }),
-  });
-  return data.query;
-}
 
 export async function draw(matchId: string, accessToken: string): Promise<SerializedMatch> {
   if (isNakamaBackend()) return nakamaMove(accessToken, matchId, { type: "draw" });

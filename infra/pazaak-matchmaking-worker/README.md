@@ -40,7 +40,7 @@ authoritative bot API:
 - `POST /api/lobbies/:id/status`
 - `POST /api/lobbies/:id/leave`
 - `GET /relay/:instanceId` as a WebSocket upgrade
-- `GET /api/config/public` — cache-friendly subset of `@openkotor/pazaak-policy`
+- `GET /api/config/public` — cache-friendly subset of `@pazaak/pazaak-policy`
   (regions, time-control presets, feature flags) for the lobby UI
 - `GET/PUT /api/admin/policy` — RBAC policy merge (Discord allowlist / guild admin);
   pair with `GET /api/admin/audit`
@@ -66,7 +66,7 @@ Set `PAZAAK_BOT_SYNC_SECRET` to a high-entropy value (minimum 32 characters).
 Policy merges in this order: **baked defaults** → optional **`PAZAAK_POLICY_JSON`**
 secret or Worker **`[vars]`** entries your loader understands → runtime admin
 `PUT /api/admin/policy`. Client-side env overrides like `PAZAAK_POLICY__…` are
-documented in the `@openkotor/pazaak-policy` package (`packages/pazaak-policy`)
+documented in the `@pazaak/pazaak-policy` package (`packages/pazaak-policy`)
 for Node/bot processes; the Worker typically uses `PAZAAK_POLICY_JSON` or admin API.
 
 Multiplayer match action endpoints intentionally return errors, so clients can

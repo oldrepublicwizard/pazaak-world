@@ -1,6 +1,6 @@
 /**
  * Player-facing rating strings (Chess.com vocabulary: MMR ≈ displayed rating, RD = rating deviation).
- * Numeric defaults mirror `@openkotor/pazaak-rating` (`PAZAAK_DEFAULT_RD`); update if that package changes.
+ * Numeric defaults mirror `@pazaak/pazaak-rating` (`PAZAAK_DEFAULT_RD`); update if that package changes.
  */
 const RD_FALLBACK = 350;
 

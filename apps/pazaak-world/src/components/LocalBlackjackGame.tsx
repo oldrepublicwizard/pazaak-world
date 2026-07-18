@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { dealerShouldHit } from "@openkotor/blackjack-engine";
+import { dealerShouldHit } from "@pazaak/blackjack-engine";
 import {
   playDrawSound,
   playPositiveSound,

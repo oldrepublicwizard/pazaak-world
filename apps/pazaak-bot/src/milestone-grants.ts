@@ -3,8 +3,8 @@ import {
   rewardsForLossTotal,
   rewardsForWinTotal,
   TIEBREAKER_TOKEN,
-} from "@openkotor/pazaak-engine";
-import type { WalletRecord } from "@openkotor/persistence";
+} from "@pazaak/pazaak-engine";
+import type { WalletRecord } from "@pazaak/persistence";
 
 export type MilestoneProgressDelta = {
   userId: string;

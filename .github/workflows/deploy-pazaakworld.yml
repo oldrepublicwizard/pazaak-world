@@ -62,10 +62,10 @@ jobs:
 
       - name: Build workspace libraries (dist for workspace:* deps)
         run: |
-          pnpm --filter @openkotor/platform build
-          pnpm --filter @openkotor/trask build
-          pnpm --filter @openkotor/blackjack-engine build
-          pnpm --filter @openkotor/pazaak-engine build
+          pnpm --filter @pazaak/platform build
+          pnpm --filter @pazaak/trask build
+          pnpm --filter @pazaak/blackjack-engine build
+          pnpm --filter @pazaak/pazaak-engine build
 
       - name: Build PazaakWorld
         env:
@@ -77,7 +77,7 @@ jobs:
           VITE_REPO_BASE_URL: https://github.com/${{ github.repository }}
           VITE_WIKI_BASE_URL: ${{ vars.WIKI_BASE_URL }}
           VITE_TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://openkotor-holocron-trask-http.hf.space' }}
+          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
           VITE_TRASK_INVITE_BASE_URL: ${{ vars.TRASK_INVITE_BASE_URL != '' && vars.TRASK_INVITE_BASE_URL || vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
           VITE_TRASK_DISCORD_APPLICATION_ID: ${{ vars.TRASK_DISCORD_APP_ID }}
           VITE_HK_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}
@@ -95,7 +95,7 @@ jobs:
         if: hashFiles('apps/holocron-web/package.json') != ''
         env:
           TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://openkotor-holocron-trask-http.hf.space' }}
+          TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
         run: |
           echo "Holocron Trask API base: ${TRASK_API_BASE}"
 
@@ -114,8 +114,8 @@ jobs:
           BASE: /community-bots/qa-webui/
           ENABLE_SPARK: "0"
           VITE_TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://openkotor-holocron-trask-http.hf.space' }}
-        run: pnpm --filter @openkotor/holocron-web build
+          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
+        run: pnpm --filter @pazaak/holocron-web build
 
       - name: Publish Holocron web under /community-bots/qa-webui/
         if: hashFiles('apps/holocron-web/package.json') != ''
@@ -129,7 +129,7 @@ jobs:
           VITE_REPO_BASE_URL: https://github.com/${{ github.repository }}
           VITE_WIKI_BASE_URL: ${{ vars.WIKI_BASE_URL }}
           VITE_TRASK_API_BASE: ${{ vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
-          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://openkotor-holocron-trask-http.hf.space' }}
+          VITE_TRASK_API_FALLBACK_BASE: ${{ vars.TRASK_API_FALLBACK_BASE != '' && vars.TRASK_API_FALLBACK_BASE || 'https://pazaak-holocron-trask-http.hf.space' }}
           VITE_TRASK_INVITE_BASE_URL: ${{ vars.TRASK_INVITE_BASE_URL != '' && vars.TRASK_INVITE_BASE_URL || vars.TRASK_API_BASE != '' && vars.TRASK_API_BASE || 'https://trask-worker.bocloud.workers.dev' }}
           VITE_TRASK_DISCORD_APPLICATION_ID: ${{ vars.TRASK_DISCORD_APP_ID }}
           VITE_HK_DISCORD_APPLICATION_ID: ${{ vars.HK86_DISCORD_APP_ID }}

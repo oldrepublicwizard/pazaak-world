@@ -1,6 +1,6 @@
 import type { AdvisorAction, AdvisorCategory, AdvisorConfidence, AdvisorDifficulty, AdvisorSnapshot, SerializedMatch, SerializedPlayerState, SideCardOption, SideCardType } from "./types.ts";
 
-/** Mirrors getSideCardOptionsForPlayer from @openkotor/pazaak-engine (browser-safe). */
+/** Mirrors getSideCardOptionsForPlayer from @pazaak/pazaak-engine (browser-safe). */
 export function getSideCardOptions(player: SerializedPlayerState): SideCardOption[] {
   const options: SideCardOption[] = [];
   const previousBoardValue = player.board.at(-1)?.value;

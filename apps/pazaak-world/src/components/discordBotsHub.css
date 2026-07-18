@@ -1,9 +1,0 @@
-@import "@openkotor/modsync-tokens/css/hub-shell.css";
-
-.discord-bots-hub.modsync-hub {
-  background: radial-gradient(
-    ellipse 120% 70% at 50% -15%,
-    var(--surface-raised) 0%,
-    var(--surface-bg) 58%
-  );
-}

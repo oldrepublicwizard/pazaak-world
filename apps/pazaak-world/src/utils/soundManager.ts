@@ -7,13 +7,13 @@
  * Ambient cantina music lives in {@link ./ambientAudio.ts} (separate graph + teardown).
  */
 
-import type { SfxBeepEvent } from "@openkotor/platform/sfx-timeline";
+import type { SfxBeepEvent } from "@pazaak/platform/sfx-timeline";
 import {
   bustBeepEvents,
   roundLossBeepEvents,
   roundWinBeepEvents,
   victoryBeepEvents,
-} from "@openkotor/platform/sfx-timeline";
+} from "@pazaak/platform/sfx-timeline";
 import { loadSoundPrefs, patchSoundPrefs } from "./soundUserPrefs.ts";
 
 interface SoundConfig {

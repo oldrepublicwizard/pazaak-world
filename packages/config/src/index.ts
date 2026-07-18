@@ -6,10 +6,10 @@ import {
   deepMergePolicy,
   loadPazaakOpsPolicy,
   type PazaakOpsPolicy,
-} from "@openkotor/pazaak-policy";
+} from "@pazaak/pazaak-policy";
 
-export type { PazaakOpsPolicy } from "@openkotor/pazaak-policy";
-import { loadPolicyFromFile } from "@openkotor/pazaak-policy/file-loader";
+export type { PazaakOpsPolicy } from "@pazaak/pazaak-policy";
+import { loadPolicyFromFile } from "@pazaak/pazaak-policy/file-loader";
 import { config as loadDotEnv } from "dotenv";
 import { z } from "zod";
 

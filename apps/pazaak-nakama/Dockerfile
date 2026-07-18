@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig
 COPY packages ./packages
 COPY apps/pazaak-nakama ./apps/pazaak-nakama
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @openkotor/pazaak-nakama build
+RUN pnpm --filter @pazaak/pazaak-nakama build
 
 FROM node:24-alpine AS runtime
 WORKDIR /app

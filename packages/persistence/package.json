@@ -1,5 +1,5 @@
 {
-  "name": "@openkotor/persistence",
+  "name": "@pazaak/persistence",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@openkotor/pazaak-rating": "workspace:*",
+    "@pazaak/pazaak-rating": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9"
   }

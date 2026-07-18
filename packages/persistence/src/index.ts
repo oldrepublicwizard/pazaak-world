@@ -2,11 +2,11 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { promisify } from "node:util";
-import { normalizeRatingDeviation, updateRatingAfterGame, PAZAAK_DEFAULT_RD } from "@openkotor/pazaak-rating";
+import { normalizeRatingDeviation, updateRatingAfterGame, PAZAAK_DEFAULT_RD } from "@pazaak/pazaak-rating";
 
 export * from "./pazaak-account-schema.js";
 export * from "./pazaak-platform-schema.js";
-export { PAZAAK_DEFAULT_MMR, PAZAAK_DEFAULT_RD, PAZAAK_RD_MAX, PAZAAK_RD_MIN, expectedScore } from "@openkotor/pazaak-rating";
+export { PAZAAK_DEFAULT_MMR, PAZAAK_DEFAULT_RD, PAZAAK_RD_MAX, PAZAAK_RD_MIN, expectedScore } from "@pazaak/pazaak-rating";
 
 const scrypt = promisify(scryptCallback);
 

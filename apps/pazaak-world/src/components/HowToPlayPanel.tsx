@@ -5,7 +5,7 @@ import {
   getBustProbabilityFromTable,
   type RulebookCardEntry,
   type RulebookGameMode,
-} from "@openkotor/pazaak-engine";
+} from "@pazaak/pazaak-engine";
 
 type Tab = "basics" | "cards" | "strategy" | "modes" | "tournaments" | "ratings";
 
@@ -293,8 +293,8 @@ function RatingsTab(): JSX.Element {
         </li>
       </ul>
       <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
-        Authoritative code: <code style={styles.token}>@openkotor/pazaak-rating</code> (pure math) and{" "}
-        <code style={styles.token}>JsonWalletRepository.recordMatch</code> in <code style={styles.token}>@openkotor/persistence</code>.
+        Authoritative code: <code style={styles.token}>@pazaak/pazaak-rating</code> (pure math) and{" "}
+        <code style={styles.token}>JsonWalletRepository.recordMatch</code> in <code style={styles.token}>@pazaak/persistence</code>.
         Tournament seeding and leaderboards still sort by MMR.
       </p>
     </div>

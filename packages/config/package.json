@@ -1,5 +1,5 @@
 {
-  "name": "@openkotor/config",
+  "name": "@pazaak/config",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@openkotor/pazaak-policy": "workspace:*",
+    "@pazaak/pazaak-policy": "workspace:*",
     "dotenv": "^16.4.7",
     "zod": "^3.24.4"
   }

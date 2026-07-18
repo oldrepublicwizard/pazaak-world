@@ -10,9 +10,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig
 COPY packages ./packages
 COPY apps/pazaak-world ./apps/pazaak-world
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @openkotor/platform build \
-  && pnpm --filter @openkotor/blackjack-engine build \
-  && pnpm --filter @openkotor/pazaak-engine build \
+RUN pnpm --filter @pazaak/platform build \
+  && pnpm --filter @pazaak/blackjack-engine build \
+  && pnpm --filter @pazaak/pazaak-engine build \
   && pnpm --filter pazaak-world build
 
 FROM base AS runtime

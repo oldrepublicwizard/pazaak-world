@@ -24,12 +24,12 @@ tags: [pazaak-world, cardworld, web-audio, localStorage]
 
 Canonical keys:
 
-- PazaakWorld: `openkotor-pazaak-world-sound-v2` (migrates then **removes** `pazaak-sound-config`, `pazaak-world-music-enabled-v1`, `pazaak-world-sound-enabled-v1`).
-- Cardworld: `openkotor-cardworld-sound-v2` (reads the same legacy keys once; **does not delete** `pazaak-sound-config` so PazaakWorld can still migrate it).
+- PazaakWorld: `pazaak-pazaak-world-sound-v2` (migrates then **removes** `pazaak-sound-config`, `pazaak-world-music-enabled-v1`, `pazaak-world-sound-enabled-v1`).
+- Cardworld: `pazaak-cardworld-sound-v2` (reads the same legacy keys once; **does not delete** `pazaak-sound-config` so PazaakWorld can still migrate it).
 
 ## Timing
 
-Multi-hit SFX use `AudioContext.currentTime` + scheduled `GainNode` ramps (see [@openkotor/platform/sfx-timeline](../../packages/platform/src/sfxBeepTimeline.ts)), avoiding main-thread `setTimeout` jitter for musical spacing.
+Multi-hit SFX use `AudioContext.currentTime` + scheduled `GainNode` ramps (see [@pazaak/platform/sfx-timeline](../../packages/platform/src/sfxBeepTimeline.ts)), avoiding main-thread `setTimeout` jitter for musical spacing.
 
 ## Autoplay
 

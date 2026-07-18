@@ -9,8 +9,8 @@ import { createHmac, randomUUID as nodeRandomUuid } from "node:crypto";
 import { mkdir, readFile, writeFile, readdir, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 
-import type { MatchPersistence, MatchPlayerState, PazaakMatch, SerializedMatch } from "@openkotor/pazaak-engine";
-import { serializeMatch, deserializeMatch } from "@openkotor/pazaak-engine";
+import type { MatchPersistence, MatchPlayerState, PazaakMatch, SerializedMatch } from "@pazaak/pazaak-engine";
+import { serializeMatch, deserializeMatch } from "@pazaak/pazaak-engine";
 
 type SerializableValue = object | string | number | boolean | null;
 

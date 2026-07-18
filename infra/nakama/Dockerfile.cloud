@@ -1,5 +1,5 @@
 # Build from repository root after the JS runtime is compiled:
-#   pnpm --filter @openkotor/pazaak-nakama build
+#   pnpm --filter @pazaak/pazaak-nakama build
 #   docker build -f infra/nakama/Dockerfile.cloud -t your-registry/pazaakworld-nakama .
 FROM registry.heroiclabs.com/heroiclabs/nakama:3.37.0
 COPY infra/nakama/cloud.yml /nakama/data/cloud.yml

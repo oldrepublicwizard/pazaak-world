@@ -6,14 +6,14 @@ import {
   type SerializedMatch,
   serializeMatch,
   deserializeMatch,
-} from "@openkotor/pazaak-engine";
-import { PAZAAK_POLICY_DEFAULTS, toPublicConfig } from "@openkotor/pazaak-policy";
+} from "@pazaak/pazaak-engine";
+import { PAZAAK_POLICY_DEFAULTS, toPublicConfig } from "@pazaak/pazaak-policy";
 import {
   PAZAAK_DEFAULT_MMR,
   PAZAAK_DEFAULT_RD,
   updateRatingAfterGame,
   type RatingSnapshot,
-} from "@openkotor/pazaak-rating";
+} from "@pazaak/pazaak-rating";
 import {
   advanceTournament,
   buildBracketView,
@@ -24,7 +24,7 @@ import {
   withdrawParticipant,
   type TournamentFormat,
   type TournamentState,
-} from "@openkotor/pazaak-tournament";
+} from "@pazaak/pazaak-tournament";
 
 const SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
 const MATCH_HANDLER = "pazaak_authoritative";

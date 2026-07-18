@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useState } from "react";
-import { PAZAAK_RULEBOOK, getCardReference } from "@openkotor/pazaak-engine";
+import { PAZAAK_RULEBOOK, getCardReference } from "@pazaak/pazaak-engine";
 import type { SavedSideboardCollectionRecord } from "../types.ts";
 import { deleteSideboard, fetchMe, fetchSideboards, openRewardCrate, saveSideboard, setActiveSideboard } from "../api.ts";
 

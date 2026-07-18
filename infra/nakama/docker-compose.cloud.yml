@@ -1,7 +1,7 @@
 # Opinionated stack for a small VM (Oracle Cloud Always Free, a VPS, etc.):
 # same network as local compose, but Nakama image bundles runtime + cloud entrypoint.
 #
-# From repo root (after `pnpm --filter @openkotor/pazaak-nakama build`):
+# From repo root (after `pnpm --filter @pazaak/pazaak-nakama build`):
 #   export NAKAMA_POSTGRES_PASSWORD='choose-a-strong-password'
 #   docker compose -f infra/nakama/docker-compose.cloud.yml up -d
 #

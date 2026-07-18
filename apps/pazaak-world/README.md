@@ -21,7 +21,7 @@ The dev server proxies `/api` and `/ws` to `http://localhost:4001`, which is the
 server inside the running `pazaak-bot` process. Start the bot first:
 
 ```bash
-pnpm --filter @openkotor/pazaak-bot dev
+pnpm --filter @pazaak/pazaak-bot dev
 ```
 
 ## Routes and Operator Console
@@ -62,7 +62,7 @@ Standalone browser mode can use:
 
 The first implementation stores this bridge in `accounts.json` next to the existing Pazaak JSON
 repositories while the new Drizzle schema is introduced. The production target is PostgreSQL via the
-schema exports in `@openkotor/persistence`.
+schema exports in `@pazaak/persistence`.
 
 ## Build
 
@@ -71,7 +71,7 @@ pnpm --filter pazaak-world build
 ```
 
 Deploy `dist/` to any static host. The canonical production URL is
-`https://openkotor.github.io/community-bots/pazaakworld`; register that URL in the Discord Developer Portal
+`https://pazaak.github.io/community-bots/pazaakworld`; register that URL in the Discord Developer Portal
 (Activities -> URL Mappings) and use it for `PAZAAK_ACTIVITY_URL` plus `PAZAAK_PUBLIC_WEB_ORIGIN`.
 
 ## React Compiler

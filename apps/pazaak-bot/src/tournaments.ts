@@ -18,8 +18,8 @@ import {
   SlashCommandSubcommandBuilder,
 } from "discord.js";
 
-import { buildErrorEmbed, buildInfoEmbed, buildSuccessEmbed, buildWarningEmbed } from "@openkotor/discord-ui";
-import { pickRandomCardTokenByRarity, type PazaakCoordinator, type PazaakGameMode, type PazaakMatch } from "@openkotor/pazaak-engine";
+import { buildErrorEmbed, buildInfoEmbed, buildSuccessEmbed, buildWarningEmbed } from "@pazaak/discord-ui";
+import { pickRandomCardTokenByRarity, type PazaakCoordinator, type PazaakGameMode, type PazaakMatch } from "@pazaak/pazaak-engine";
 import {
   advanceTournament,
   attachEngineMatchId,
@@ -36,8 +36,8 @@ import {
   type TournamentParticipant,
   type TournamentRepository,
   type TournamentState,
-} from "@openkotor/pazaak-tournament";
-import type { JsonWalletRepository } from "@openkotor/persistence";
+} from "@pazaak/pazaak-tournament";
+import type { JsonWalletRepository } from "@pazaak/persistence";
 
 // ---------------------------------------------------------------------------
 // Command builders

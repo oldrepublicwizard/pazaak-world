@@ -4,7 +4,7 @@ import {
   pazaakOpponents,
   type PazaakOpponentPhraseKey,
   type PazaakOpponentProfile,
-} from "@openkotor/pazaak-engine/opponents";
+} from "@pazaak/pazaak-engine/opponents";
 import type { AdvisorDifficulty } from "./types.ts";
 
 export type LocalOpponentPhraseKey = PazaakOpponentPhraseKey;

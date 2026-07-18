@@ -11,7 +11,7 @@ From the repository root:
 
 ```powershell
 pnpm install
-pnpm --filter @openkotor/pazaak-nakama build
+pnpm --filter @pazaak/pazaak-nakama build
 docker compose -f infra/nakama/docker-compose.yml up
 pnpm dev:pazaak-world
 ```
@@ -35,7 +35,7 @@ The local stack intentionally uses `defaultkey` for development. Use unique
 server keys, session encryption keys, runtime HTTP keys, and managed secret
 injection for any shared or production environment.
 
-**Security:** the client uses Nakama `authenticateCustom` with an `openkotor:*`
+**Security:** the client uses Nakama `authenticateCustom` with an `pazaak:*`
 stable id for Discord-linked accounts without a server-side token exchange in
 this dev path. For production, add a `beforeAuthenticateCustom` hook (or exchange
 Discord OAuth on your API and mint signed credentials) so accounts cannot be

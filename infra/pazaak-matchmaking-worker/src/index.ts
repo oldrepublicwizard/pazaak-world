@@ -8,7 +8,7 @@ import {
   fetchGoogleSocialAuthProfile,
   resolveSocialAuthProviderConfig,
   type EnvLookup,
-} from "@openkotor/platform/oauth";
+} from "@pazaak/platform/oauth";
 import {
   advanceTournament,
   buildBracketView,
@@ -19,15 +19,15 @@ import {
   withdrawParticipant,
   type TournamentFormat,
   type TournamentState,
-} from "@openkotor/pazaak-tournament";
-import type { SerializedMatch } from "@openkotor/pazaak-engine";
+} from "@pazaak/pazaak-tournament";
+import type { SerializedMatch } from "@pazaak/pazaak-engine";
 import {
   deepMergePolicy,
   loadPazaakOpsPolicy,
   parsePolicyJson,
   toPublicConfig,
   type PazaakOpsPolicy,
-} from "@openkotor/pazaak-policy";
+} from "@pazaak/pazaak-policy";
 
 import { MatchActor } from "./match-actor.js";
 import {
